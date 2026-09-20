@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>City Drive</title>
+    <title>City Drive - Ultimate Immersive Edition</title>
     <style>
         * {
             box-sizing: border-box;
@@ -17,17 +17,17 @@
             margin: 0;
             padding: 0;
             width: 100%;
-            min-height: 100%;
-            background: #090d12;
+            height: 100%;
+            background: #030508;
             color: white;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
         body {
             display: flex;
             justify-content: center;
-            padding: 14px;
+            align-items: center;
             touch-action: manipulation;
         }
 
@@ -35,112 +35,182 @@
             font: inherit;
             -webkit-user-select: none;
             user-select: none;
-            -webkit-touch-callout: none;
             cursor: pointer;
             touch-action: none;
         }
 
         #game {
-            width: min(520px, 100%);
+            width: 100%;
+            height: 100%;
+            max-width: 480px;
+            max-height: 950px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px;
         }
 
-        /* TOP */
+        /* TOP BAR */
         .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            padding: 4px 8px;
         }
 
         .logo {
-            font-size: 21px;
-            font-weight: 850;
-            letter-spacing: -.7px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
         }
 
         .logo span {
-            opacity: .38;
-            font-weight: 500;
+            color: #00ffcc;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
         }
 
         .stats {
             display: flex;
-            gap: 7px;
+            gap: 6px;
         }
 
         .stat {
-            padding: 8px 11px;
-            border-radius: 13px;
-            background: #141a21;
-            border: 1px solid #252d37;
-            color: #bfc8d3;
-            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            background: rgba(20, 26, 33, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #dce2e9;
+            font-size: 11px;
+            font-weight: bold;
         }
 
-        /* GAME */
+        .icon-btn {
+            background: rgba(20, 26, 33, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* GAME CARD */
         .game-card {
             position: relative;
+            flex: 1;
             overflow: hidden;
-            border-radius: 27px;
-            background: #88afbf;
-            border: 1px solid #2c3640;
-            box-shadow: 0 20px 60px rgba(0,0,0,.42);
-            touch-action: none;
+            border-radius: 20px;
+            background: #111;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            display: flex;
+            flex-direction: column;
+            margin: 6px 0;
         }
 
         canvas {
             display: block;
             width: 100%;
-            aspect-ratio: 9 / 13;
-            touch-action: none;
+            height: 100%;
+        }
+
+        /* AUDIO BANNER / START OVERLAY */
+        #start-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(5, 8, 12, 0.88);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #start-overlay h2 {
+            font-size: 22px;
+            margin-bottom: 8px;
+            color: #00ffcc;
+        }
+
+        #start-overlay p {
+            font-size: 13px;
+            color: #8da4be;
+            margin-bottom: 24px;
+            line-height: 1.4;
+        }
+
+        .start-btn {
+            background: linear-gradient(145deg, #00ffcc, #00b388);
+            color: #000;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 16px;
+            font-weight: 900;
+            font-size: 14px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 25px rgba(0,255,204,0.4);
         }
 
         /* HUD */
         .hud {
             position: absolute;
-            top: 13px;
-            left: 13px;
-            right: 13px;
+            top: 12px;
+            left: 12px;
+            right: 12px;
             display: flex;
             justify-content: space-between;
             pointer-events: none;
         }
 
         .glass {
-            background: rgba(10,15,20,.78);
-            border: 1px solid rgba(255,255,255,.12);
-            backdrop-filter: blur(12px);
-            border-radius: 16px;
+            background: rgba(10, 15, 20, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px);
+            border-radius: 14px;
         }
 
         .city-info {
-            padding: 10px 13px;
+            padding: 8px 12px;
         }
 
         .city-info strong {
             display: block;
-            font-size: 15px;
+            font-size: 14px;
+            letter-spacing: 0.5px;
         }
 
         .city-info small {
             display: block;
-            margin-top: 2px;
-            color: #aab4c0;
-            font-size: 11px;
+            margin-top: 1px;
+            color: #8da4be;
+            font-size: 10px;
         }
 
         .distance {
-            padding: 10px 13px;
-            font-size: 12px;
-            color: #dce2e9;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
         }
 
         /* CONTROLS */
         .controls {
             position: absolute;
-            left: 13px;
-            right: 13px;
-            bottom: 14px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
@@ -153,62 +223,69 @@
 
         .control-row {
             display: flex;
-            gap: 9px;
+            gap: 8px;
         }
 
         .game-btn {
-            width: 59px;
-            height: 59px;
-            border-radius: 19px;
-            border: 1px solid rgba(255,255,255,.13);
-            background: linear-gradient(145deg, rgba(36,45,56,.95), rgba(13,18,24,.95));
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: linear-gradient(145deg, rgba(40,50,65,0.95), rgba(15,20,28,0.95));
             color: white;
             display: flex;
             justify-content: center;
             align-items: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,.30);
-            transition: transform .08s ease, background .1s ease;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.4);
+            transition: transform 0.05s ease, background 0.1s ease;
             outline: none;
         }
 
         .game-btn:active {
-            transform: scale(.90);
-            background: #303c4a;
+            transform: scale(0.88);
+            background: #3a485a;
         }
 
         .steer {
-            font-size: 30px;
+            font-size: 26px;
             font-weight: 300;
         }
 
         .drive, .brake {
-            width: 76px;
+            width: 70px;
             font-size: 11px;
-            font-weight: 850;
-            letter-spacing: .5px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+
+        .drive {
+            background: linear-gradient(145deg, #00ffcc, #009977);
+            color: #000;
+            border-color: #66ffde;
         }
 
         .brake {
-            color: #ffb0a7;
+            background: linear-gradient(145deg, #ff4444, #aa2222);
+            color: #fff;
+            border-color: #ff6666;
         }
 
-        /* CITY LIST */
+        /* CITIES LIST */
         .explore-title {
-            margin-top: 17px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             color: #697482;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.4px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
         }
 
         .cities {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             overflow-x: auto;
-            padding-bottom: 4px;
+            padding-bottom: 2px;
             scrollbar-width: none;
-            touch-action: pan-x;
         }
 
         .cities::-webkit-scrollbar {
@@ -217,24 +294,22 @@
 
         .city {
             flex-shrink: 0;
-            padding: 11px 14px;
-            border-radius: 14px;
+            padding: 8px 12px;
+            border-radius: 12px;
             border: 1px solid #29313b;
             background: #11161d;
-            color: #dce2e8;
-            font-size: 13px;
+            color: #aab4c0;
+            font-size: 12px;
             font-weight: 700;
             outline: none;
+            transition: 0.2s;
         }
 
         .city.active {
-            background: #edf1f5;
-            color: #11161c;
-            border-color: #edf1f5;
-        }
-
-        .city:active {
-            transform: scale(.95);
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
         }
     </style>
 </head>
@@ -245,17 +320,22 @@
         <div class="logo">
             CITY<span>DRIVE</span>
         </div>
-        <div class="stats">
-            <div class="stat">
-                ✦ <b id="mood">0</b>
+        <div class="top-actions">
+            <div class="stats">
+                <div class="stat">VIBE <b id="mood">0</b></div>
+                <div class="stat"><b id="speed">0</b> KM/H</div>
             </div>
-            <div class="stat">
-                <b id="speed">0</b> km/h
-            </div>
+            <button class="icon-btn" id="fullscreen-btn" title="Ամբողջ էկրան">⛶</button>
         </div>
     </header>
 
     <main class="game-card">
+        <div id="start-overlay">
+            <h2>ՍԿՍԵԼ ՃԱՆԱՊԱՐՀՈՒԹՅՈՒՆԸ</h2>
+            <p>Սեղմեք ստորև նշված կոճակը երաժշտության, անձրևի և մեքենայի շարժիչի էֆեկտներով լիարժեք խաղալու համար:</p>
+            <button class="start-btn" id="start-btn">ՄԻԱՑՆԵԼ ԵՎ ԽԱՂԱԼ</button>
+        </div>
+
         <canvas id="canvas"></canvas>
 
         <div class="hud">
@@ -280,14 +360,15 @@
         </div>
     </main>
 
-    <div class="explore-title">EXPLORE</div>
-
-    <div class="cities">
-        <button class="city active" data-city="Yerevan">🇦🇲 Yerevan</button>
-        <button class="city" data-city="Paris">🇫🇷 Paris</button>
-        <button class="city" data-city="Kyoto">🇯🇵 Kyoto</button>
-        <button class="city" data-city="Lisbon">🇵🇹 Lisbon</button>
-        <button class="city" data-city="New York">🇺🇸 New York</button>
+    <div>
+        <div class="explore-title">Select Destination</div>
+        <div class="cities">
+            <button class="city active" data-city="Yerevan">🇦🇲 Yerevan</button>
+            <button class="city" data-city="Paris">🇫🇷 Paris (Rain)</button>
+            <button class="city" data-city="Kyoto">🇯🇵 Kyoto</button>
+            <button class="city" data-city="Lisbon">🇵🇹 Lisbon</button>
+            <button class="city" data-city="New York">🇺🇸 New York</button>
+        </div>
     </div>
 </div>
 
@@ -297,61 +378,118 @@
 
     const cities = {
         Yerevan: {
-            sky: "#e5a16c",
-            road: "#4b4d50",
-            sidewalk: "#c8b08c",
-            buildings: ["#b97959", "#d09a72", "#8e7568"],
-            trees: "#607b55",
-            car: "#c85b48",
-            area: "Cascade Evening"
+            skyTop: "#2a1525", skyBottom: "#e57352",
+            road: "#33383e", sidewalk: "#b89773",
+            buildings: ["#7a4334", "#9e5c46", "#57352d"],
+            lights: "#ffeb99", trees: "#486338", car: "#d94b36",
+            area: "Cascade Evening", rain: false, tempo: 110
         },
         Paris: {
-            sky: "#aebdca",
-            road: "#50545a",
-            sidewalk: "#c7bdab",
-            buildings: ["#d5c4a8", "#b8a68f", "#90999a"],
-            trees: "#58735a",
-            car: "#7186a0",
-            area: "Montmartre Streets"
+            skyTop: "#0f1722", skyBottom: "#52677d",
+            road: "#262b30", sidewalk: "#8c8477",
+            buildings: ["#665d4e", "#4d4438", "#383127"],
+            lights: "#fff3b0", trees: "#314033", car: "#405b7a",
+            area: "Paris Rainy Noir", rain: true, tempo: 95
         },
         Kyoto: {
-            sky: "#d79b88",
-            road: "#484b4d",
-            sidewalk: "#aa8b69",
-            buildings: ["#875d49", "#b67b5b", "#d0a47d"],
-            trees: "#526d4e",
-            car: "#9c5f51",
-            area: "Lantern District"
+            skyTop: "#2b161c", skyBottom: "#d97a62",
+            road: "#36393b", sidewalk: "#9c7c5c",
+            buildings: ["#663c2c", "#8c533d", "#4a2a1e"],
+            lights: "#ffb366", trees: "#3d5438", car: "#b34838",
+            area: "Lantern District", rain: false, tempo: 100
         },
         Lisbon: {
-            sky: "#82bacb",
-            road: "#505054",
-            sidewalk: "#d8c79b",
-            buildings: ["#dfb55e", "#d88763", "#a9c0bd"],
-            trees: "#52734f",
-            car: "#d4a33d",
-            area: "Alfama Hills"
+            skyTop: "#162838", skyBottom: "#60a5bc",
+            road: "#3d3d42", sidewalk: "#c4b487",
+            buildings: ["#c4963b", "#b85d37", "#739491"],
+            lights: "#ffeeaa", trees: "#3e5e3c", car: "#e09f28",
+            area: "Alfama Hills", rain: false, tempo: 120
         },
         "New York": {
-            sky: "#758ca6",
-            road: "#414348",
-            sidewalk: "#70716e",
-            buildings: ["#696c73", "#897c72", "#565c65"],
-            trees: "#405d49",
-            car: "#637b99",
-            area: "Downtown Twilight"
+            skyTop: "#0a0f17", skyBottom: "#34495e",
+            road: "#24282c", sidewalk: "#4f504d",
+            buildings: ["#3a3d44", "#524942", "#2b2f36"],
+            lights: "#e6f2ff", trees: "#203025", car: "#3d5573",
+            area: "Downtown Twilight", rain: false, tempo: 128
         }
     };
 
     let currentCity = "Yerevan";
     let speed = 0;
+    let maxSpeed = 1.0;
     let distance = 0;
     let mood = 0;
     let steering = 0;
+    let targetSteering = 0;
     let drivePressed = false;
     let brakePressed = false;
     let worldTime = 0;
     let lastTime = performance.now();
+    let particles = [];
+    let rainDrops = [];
+    let trafficCars = [];
+
+    // AUDIO SYSTEM SETUP
+    let audioCtx = null;
+    let isAudioStarted = false;
+    let noteIndex = 0;
+
+    function initAudio() {
+        if (audioCtx) return;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        setInterval(() => {
+            if (!isAudioStarted || !audioCtx) return;
+            playChordsAndMelody();
+        }, 350);
+    }
+
+    const scales = {
+        Yerevan: [220, 261.63, 293.66, 329.63, 392, 440],
+        Paris: [196, 233.08, 261.63, 293.66, 349.23, 392],
+        Kyoto: [174.61, 220, 233.08, 261.63, 349.23, 440],
+        Lisbon: [246.94, 293.66, 329.63, 369.99, 440, 493.88],
+        "New York": [164.81, 196, 220, 246.94, 293.66, 329.63]
+    };
+
+    function playChordsAndMelody() {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        const scale = scales[currentCity] || scales.Yerevan;
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = currentCity === "Paris" ? "sawtooth" : "sine";
+        
+        let freq = scale[noteIndex % scale.length];
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+        gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 1.2);
+        noteIndex++;
+    }
+
+    function playSound(type) {
+        if (!audioCtx || !isAudioStarted) return;
+        if (type === 'brake') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(120, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+    }
 
     function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
@@ -360,7 +498,6 @@
         canvas.height = rect.height * ratio;
         ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     }
-
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
@@ -380,6 +517,24 @@
         ctx.fill();
     }
 
+    for (let i = 0; i < 4; i++) {
+        trafficCars.push({
+            laneOffset: (Math.random() - 0.5) * 0.5,
+            progress: 0.2 + i * 0.25,
+            speedFactor: 0.4 + Math.random() * 0.3,
+            color: ["#336699", "#993333", "#339966", "#996633"][i % 4]
+        });
+    }
+
+    for (let i = 0; i < 60; i++) {
+        rainDrops.push({
+            x: Math.random() * 600,
+            y: Math.random() * 900,
+            len: 15 + Math.random() * 20,
+            speed: 15 + Math.random() * 10
+        });
+    }
+
     function draw() {
         const W = canvas.clientWidth;
         const H = canvas.clientHeight;
@@ -387,145 +542,184 @@
 
         ctx.clearRect(0, 0, W, H);
 
-        /* SKY */
-        ctx.fillStyle = city.sky;
-        ctx.fillRect(0, 0, W, H);
+        let skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+        skyGrad.addColorStop(0, city.skyTop);
+        skyGrad.addColorStop(1, city.skyBottom);
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, W, H * 0.5);
 
-        /* SUN */
-        ctx.fillStyle = "rgba(255,235,175,.78)";
+        ctx.fillStyle = "rgba(255, 240, 200, 0.85)";
         ctx.beginPath();
-        ctx.arc(W * .76, H * .18, 31, 0, Math.PI * 2);
+        ctx.arc(W * 0.75, H * 0.22, 28, 0, Math.PI * 2);
         ctx.fill();
 
-        /* DISTANT MOUNTAINS */
-        ctx.fillStyle = "rgba(70,85,88,.25)";
-        ctx.beginPath();
-        ctx.moveTo(0, H * .48);
-        ctx.lineTo(W * .18, H * .30);
-        ctx.lineTo(W * .35, H * .45);
-        ctx.lineTo(W * .53, H * .28);
-        ctx.lineTo(W * .73, H * .44);
-        ctx.lineTo(W * .9, H * .32);
-        ctx.lineTo(W, H * .48);
-        ctx.lineTo(W, H * .58);
-        ctx.lineTo(0, H * .58);
-        ctx.closePath();
-        ctx.fill();
+        for (let i = 0; i < 14; i++) {
+            let bWidth = 35 + (i * 7) % 20;
+            let bHeight = 60 + (i * 23) % 90;
+            let bx = ((i * 55) - (worldTime * 20) % W + W * 2) % W - 50;
+            
+            ctx.fillStyle = city.buildings[i % city.buildings.length];
+            ctx.globalAlpha = 0.5;
+            ctx.fillRect(bx, H * 0.48 - bHeight, bWidth, bHeight);
+        }
+        ctx.globalAlpha = 1.0;
 
-        /* BUILDINGS */
-        for (let i = 0; i < 18; i++) {
-            const width = 28 + (i % 4) * 9;
-            const height = 45 + (i * 31) % 110;
-            const x = i * (W / 13) - ((worldTime * 45) % (W / 13)) - 20;
+        let horizonY = H * 0.48;
+        let roadBottomW = W * 0.85;
+        let roadTopW = W * 0.12;
+        let curveOffset = steering * W * 0.15;
 
-            ctx.fillStyle = city.buildings[i % 3];
-            ctx.fillRect(x, H * .49 - height, width, height);
+        for (let i = 0; i < 10; i++) {
+            let bWidth = 45 + (i * 13) % 25;
+            let bHeight = 80 + (i * 41) % 130;
+            let bx = ((i * 90) - (worldTime * 55) % W + W * 2) % W - 60;
 
-            for (let row = 0; row < 4; row++) {
-                ctx.fillStyle = "rgba(255,240,180,.48)";
-                ctx.fillRect(x + 7, H * .49 - height + 12 + row * 20, 5, 7);
+            ctx.fillStyle = city.buildings[(i + 1) % city.buildings.length];
+            ctx.fillRect(bx, horizonY - bHeight, bWidth, bHeight);
+
+            ctx.fillStyle = city.lights;
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 3; c++) {
+                    if ((i + r + c) % 3 !== 0) {
+                        ctx.fillRect(bx + 8 + c * 10, horizonY - bHeight + 15 + r * 20, 5, 8);
+                    }
+                }
             }
         }
 
-        /* SIDEWALKS */
         ctx.fillStyle = city.sidewalk;
-        ctx.fillRect(0, H * .49, W * .14, H);
-        ctx.fillRect(W * .86, H * .49, W * .14, H);
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - roadTopW / 2 + curveOffset * 0.2, horizonY);
+        ctx.lineTo(W / 2 - roadBottomW / 2 + steering * W * 0.4, H);
+        ctx.lineTo(0, H);
+        ctx.lineTo(0, horizonY);
+        ctx.fill();
 
-        /* ROAD */
+        ctx.beginPath();
+        ctx.moveTo(W / 2 + roadTopW / 2 + curveOffset * 0.2, horizonY);
+        ctx.lineTo(W / 2 + roadBottomW / 2 + steering * W * 0.4, H);
+        ctx.lineTo(W, H);
+        ctx.lineTo(W, horizonY);
+        ctx.fill();
+
         ctx.fillStyle = city.road;
         ctx.beginPath();
-        ctx.moveTo(W * .12, H);
-        ctx.lineTo(W * .435, H * .47);
-        ctx.lineTo(W * .565, H * .47);
-        ctx.lineTo(W * .88, H);
+        ctx.moveTo(W / 2 - roadTopW / 2 + curveOffset * 0.2, horizonY);
+        ctx.lineTo(W / 2 + roadTopW / 2 + curveOffset * 0.2, horizonY);
+        ctx.lineTo(W / 2 + roadBottomW / 2 + steering * W * 0.4, H);
+        ctx.lineTo(W / 2 - roadBottomW / 2 + steering * W * 0.4, H);
         ctx.closePath();
         ctx.fill();
 
-        /* ROAD EDGES */
-        ctx.strokeStyle = "rgba(245,232,201,.7)";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(W * .12, H);
-        ctx.lineTo(W * .435, H * .47);
-        ctx.moveTo(W * .88, H);
-        ctx.lineTo(W * .565, H * .47);
-        ctx.stroke();
-
-        /* ROAD MARKINGS */
-        for (let i = 0; i < 9; i++) {
-            const p = (i * .15 + worldTime * .22) % 1;
-            const y = H * .47 + p * p * (H * .53);
-            const width = 3 + p * 10;
-            ctx.fillStyle = "#eee4c9";
-            ctx.fillRect(W / 2 - width / 2, y, width, 4 + p * 6);
+        if (city.rain) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+            ctx.fillRect(W / 2 - roadBottomW / 2, horizonY, roadBottomW, H - horizonY);
         }
 
-        /* TREES */
-        for (let i = 0; i < 8; i++) {
-            const p = (i * .16 + worldTime * .07) % 1;
-            const y = H * .49 + p * p * (H * .42);
-            const side = i % 2 ? 1 : -1;
-            const x = W / 2 + side * (W * .36 * p + W * .08);
+        let stripeCount = 10;
+        for (let i = 0; i < stripeCount; i++) {
+            let p = (i / stripeCount + worldTime * 0.3) % 1;
+            let sy = horizonY + p * p * (H - horizonY);
+            let sw = 2 + p * 12;
+            let sx = W / 2 + (curveOffset * 0.2) * (1 - p) + (steering * W * 0.4) * p;
 
-            ctx.fillStyle = "#66533f";
-            ctx.fillRect(x - 2, y, 4, 20 + p * 20);
-
-            ctx.fillStyle = city.trees;
-            ctx.beginPath();
-            ctx.arc(x, y - 13, 12 + p * 7, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillStyle = i % 2 === 0 ? "#ffffff" : "#00ffcc";
+            ctx.fillRect(sx - sw / 2, sy, sw, p * 15);
         }
 
-        /* CAR */
-        const carX = W / 2 + steering * W * .18;
-        const carY = H * .79;
+        trafficCars.forEach(tc => {
+            tc.progress += speed * 0.015 * tc.speedFactor;
+            if (tc.progress > 1) {
+                tc.progress = 0;
+                tc.laneOffset = (Math.random() - 0.5) * 0.55;
+            }
 
-        ctx.fillStyle = "rgba(0,0,0,.3)";
+            let p = tc.progress;
+            let ty = horizonY + p * p * (H - horizonY);
+            let tw = 12 + p * 60;
+            let th = 10 + p * 50;
+            let tx = W / 2 + tc.laneOffset * (roadTopW + p * (roadBottomW - roadTopW)) + (steering * W * 0.4) * p;
+
+            if (p > 0.05 && p < 0.98) {
+                ctx.fillStyle = "rgba(0,0,0,0.3)";
+                ctx.beginPath();
+                ctx.ellipse(tx, ty + th / 2, tw * 0.45, th * 0.15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                roundedRect(tx - tw / 2, ty - th / 2, tw, th, 6, tc.color);
+                ctx.fillStyle = "#ff3333";
+                ctx.fillRect(tx - tw / 2 + 2, ty + th / 2 - 4, tw * 0.2, 4);
+                ctx.fillRect(tx + tw / 2 - tw * 0.2 - 2, ty + th / 2 - 4, tw * 0.2, 4);
+            }
+        });
+
+        let carX = W / 2 + steering * W * 0.22;
+        let carY = H * 0.78;
+
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
         ctx.beginPath();
-        ctx.ellipse(carX, carY + 38, 38, 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(carX, carY + 36, 42, 12, 0, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.save();
         ctx.translate(carX, carY);
-        ctx.rotate(steering * .08);
+        ctx.rotate(steering * 0.12);
 
-        roundedRect(-31, -55, 62, 108, 14, "#252a30");
-        roundedRect(-26, -49, 52, 91, 11, city.car);
-        roundedRect(-20, -38, 40, 27, 7, "#9fc1c8");
-        roundedRect(-20, -3, 40, 25, 6, "#75959d");
+        roundedRect(-32, -58, 64, 114, 16, "#11161d");
+        roundedRect(-28, -52, 56, 102, 13, city.car);
 
-        ctx.fillStyle = "#f6d77a";
-        ctx.fillRect(-23, -51, 13, 5);
-        ctx.fillRect(10, -51, 13, 5);
+        roundedRect(-22, -40, 44, 28, 7, "#88b3be");
+        roundedRect(-22, -2, 44, 28, 6, "#54737d");
 
-        ctx.fillStyle = "#e66a62";
-        ctx.fillRect(-23, 39, 13, 5);
-        ctx.fillRect(10, 39, 13, 5);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(-24, -53, 12, 5);
+        ctx.fillRect(12, -53, 12, 5);
+
+        ctx.fillStyle = brakePressed ? "#ff0000" : "#aa1111";
+        ctx.shadowColor = brakePressed ? "#ff0000" : "transparent";
+        ctx.shadowBlur = brakePressed ? 15 : 0;
+        ctx.fillRect(-24, 43, 12, 6);
+        ctx.fillRect(12, 43, 12, 6);
+        ctx.shadowBlur = 0;
 
         ctx.restore();
+
+        if (city.rain) {
+            ctx.strokeStyle = "rgba(180, 210, 255, 0.6)";
+            ctx.lineWidth = 1.5;
+            rainDrops.forEach(drop => {
+                ctx.beginPath();
+                ctx.moveTo(drop.x, drop.y);
+                ctx.lineTo(drop.x - 2, drop.y + drop.len);
+                ctx.stroke();
+                drop.y += drop.speed + speed * 15;
+                if (drop.y > H) { drop.y = -20; drop.x = Math.random() * W; }
+            });
+        }
     }
 
     function gameLoop(now) {
-        const delta = Math.min(.05, (now - lastTime) / 1000);
+        const delta = Math.min(0.05, (now - lastTime) / 1000);
         lastTime = now;
 
+        steering += (targetSteering - steering) * 0.15;
+
         if (drivePressed && !brakePressed) {
-            speed = Math.min(1, speed + delta * .65);
+            speed = Math.min(maxSpeed, speed + delta * 0.7);
         } else if (brakePressed) {
-            speed = Math.max(0, speed - delta * 2.8);
+            speed = Math.max(0, speed - delta * 3.2);
         } else {
-            speed = Math.max(0, speed - delta * .20);
+            speed = Math.max(0, speed - delta * 0.25);
         }
 
-        if (speed > .1) {
-            distance += speed * delta * 1.8;
-            mood += delta * 1.2;
+        if (speed > 0.05) {
+            distance += speed * delta * 2.2;
+            mood += delta * 1.5;
         }
 
-        worldTime += delta * (.4 + speed * 2.5);
+        worldTime += delta * (0.3 + speed * 3.5);
 
-        document.getElementById("speed").textContent = Math.round(speed * 80);
+        document.getElementById("speed").textContent = Math.round(speed * 110);
         document.getElementById("distance").textContent = distance.toFixed(1);
         document.getElementById("mood").textContent = Math.floor(mood);
 
@@ -536,33 +730,49 @@
     requestAnimationFrame(gameLoop);
 
     function holdButton(id, press, release) {
-        const button = document.getElementById(id);
-        if (!button) return;
-
-        button.addEventListener("pointerdown", event => {
-            event.preventDefault();
-            button.setPointerCapture?.(event.pointerId);
-            press();
-        });
-
-        const stop = event => {
-            event.preventDefault();
-            release();
-        };
-
-        button.addEventListener("pointerup", stop);
-        button.addEventListener("pointercancel", stop);
-        button.addEventListener("lostpointercapture", release);
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener("pointerdown", e => { e.preventDefault(); btn.setPointerCapture?.(e.pointerId); press(); });
+        const stop = e => { e.preventDefault(); release(); };
+        btn.addEventListener("pointerup", stop);
+        btn.addEventListener("pointercancel", stop);
     }
 
-    holdButton("left", () => { steering = -1; }, () => { if (steering < 0) steering = 0; });
-    holdButton("right", () => { steering = 1; }, () => { if (steering > 0) steering = 0; });
-    holdButton("drive", () => { drivePressed = true; }, () => { drivePressed = false; });
-    holdButton("brake", () => { brakePressed = true; }, () => { brakePressed = false; });
+    holdButton("left", () => targetSteering = -1, () => { if (targetSteering < 0) targetSteering = 0; });
+    holdButton("right", () => targetSteering = 1, () => { if (targetSteering > 0) targetSteering = 0; });
+    holdButton("drive", () => drivePressed = true, () => drivePressed = false);
+    holdButton("brake", () => { brakePressed = true; playSound('brake'); }, () => brakePressed = false);
 
-    document.addEventListener("contextmenu", e => e.preventDefault());
-    document.addEventListener("selectstart", e => e.preventDefault());
-    document.addEventListener("dragstart", e => e.preventDefault());
+    window.addEventListener("keydown", e => {
+        if (e.key === "ArrowLeft") targetSteering = -1;
+        if (e.key === "ArrowRight") targetSteering = 1;
+        if (e.key === "ArrowUp") drivePressed = true;
+        if (e.key === "ArrowDown") { brakePressed = true; playSound('brake'); }
+    });
+    window.addEventListener("keyup", e => {
+        if (e.key === "ArrowLeft" && targetSteering < 0) targetSteering = 0;
+        if (e.key === "ArrowRight" && targetSteering > 0) targetSteering = 0;
+        if (e.key === "ArrowUp") drivePressed = false;
+        if (e.key === "ArrowDown") brakePressed = false;
+    });
+
+    // Fullscreen Toggle
+    const fsBtn = document.getElementById("fullscreen-btn");
+    fsBtn.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => console.log(err));
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    });
+
+    document.getElementById("start-btn").addEventListener("click", () => {
+        initAudio();
+        isAudioStarted = true;
+        document.getElementById("start-overlay").style.display = "none";
+    });
 
     document.querySelectorAll(".city").forEach(button => {
         button.addEventListener("click", () => {
@@ -571,26 +781,12 @@
                 document.getElementById("cityName").textContent = currentCity;
                 document.getElementById("cityArea").textContent = cities[currentCity].area;
             }
-
-            document.querySelectorAll(".city").forEach(item => {
-                item.classList.toggle("active", item === button);
-            });
+            document.querySelectorAll(".city").forEach(b => b.classList.remove("active"));
+            button.classList.add("active");
         });
     });
 
-    window.addEventListener("keydown", event => {
-        if (event.key === "ArrowLeft") steering = -1;
-        if (event.key === "ArrowRight") steering = 1;
-        if (event.key === "ArrowUp") drivePressed = true;
-        if (event.key === "ArrowDown") brakePressed = true;
-    });
-
-    window.addEventListener("keyup", event => {
-        if (event.key === "ArrowLeft" && steering < 0) steering = 0;
-        if (event.key === "ArrowRight" && steering > 0) steering = 0;
-        if (event.key === "ArrowUp") drivePressed = false;
-        if (event.key === "ArrowDown") brakePressed = false;
-    });
+    document.addEventListener("contextmenu", e => e.preventDefault());
 </script>
 </body>
 </html>
