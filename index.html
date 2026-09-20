@@ -1,2042 +1,597 @@
-<div id="game">
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>City Drive</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
 
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            min-height: 100%;
+            background: #090d12;
+            color: white;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            padding: 14px;
+            touch-action: manipulation;
+        }
+
+        button {
+            font: inherit;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            cursor: pointer;
+            touch-action: none;
+        }
+
+        #game {
+            width: min(520px, 100%);
+        }
+
+        /* TOP */
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .logo {
+            font-size: 21px;
+            font-weight: 850;
+            letter-spacing: -.7px;
+        }
+
+        .logo span {
+            opacity: .38;
+            font-weight: 500;
+        }
+
+        .stats {
+            display: flex;
+            gap: 7px;
+        }
+
+        .stat {
+            padding: 8px 11px;
+            border-radius: 13px;
+            background: #141a21;
+            border: 1px solid #252d37;
+            color: #bfc8d3;
+            font-size: 12px;
+        }
+
+        /* GAME */
+        .game-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 27px;
+            background: #88afbf;
+            border: 1px solid #2c3640;
+            box-shadow: 0 20px 60px rgba(0,0,0,.42);
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 9 / 13;
+            touch-action: none;
+        }
+
+        /* HUD */
+        .hud {
+            position: absolute;
+            top: 13px;
+            left: 13px;
+            right: 13px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .glass {
+            background: rgba(10,15,20,.78);
+            border: 1px solid rgba(255,255,255,.12);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+        }
+
+        .city-info {
+            padding: 10px 13px;
+        }
+
+        .city-info strong {
+            display: block;
+            font-size: 15px;
+        }
+
+        .city-info small {
+            display: block;
+            margin-top: 2px;
+            color: #aab4c0;
+            font-size: 11px;
+        }
+
+        .distance {
+            padding: 10px 13px;
+            font-size: 12px;
+            color: #dce2e9;
+        }
+
+        /* CONTROLS */
+        .controls {
+            position: absolute;
+            left: 13px;
+            right: 13px;
+            bottom: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+
+        .controls button {
+            pointer-events: auto;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 9px;
+        }
+
+        .game-btn {
+            width: 59px;
+            height: 59px;
+            border-radius: 19px;
+            border: 1px solid rgba(255,255,255,.13);
+            background: linear-gradient(145deg, rgba(36,45,56,.95), rgba(13,18,24,.95));
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,.30);
+            transition: transform .08s ease, background .1s ease;
+            outline: none;
+        }
+
+        .game-btn:active {
+            transform: scale(.90);
+            background: #303c4a;
+        }
+
+        .steer {
+            font-size: 30px;
+            font-weight: 300;
+        }
+
+        .drive, .brake {
+            width: 76px;
+            font-size: 11px;
+            font-weight: 850;
+            letter-spacing: .5px;
+        }
+
+        .brake {
+            color: #ffb0a7;
+        }
+
+        /* CITY LIST */
+        .explore-title {
+            margin-top: 17px;
+            margin-bottom: 8px;
+            color: #697482;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+        }
+
+        .cities {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+            touch-action: pan-x;
+        }
+
+        .cities::-webkit-scrollbar {
+            display: none;
+        }
+
+        .city {
+            flex-shrink: 0;
+            padding: 11px 14px;
+            border-radius: 14px;
+            border: 1px solid #29313b;
+            background: #11161d;
+            color: #dce2e8;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+        }
+
+        .city.active {
+            background: #edf1f5;
+            color: #11161c;
+            border-color: #edf1f5;
+        }
+
+        .city:active {
+            transform: scale(.95);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game">
     <header class="topbar">
         <div class="logo">
             CITY<span>DRIVE</span>
         </div>
-
         <div class="stats">
             <div class="stat">
                 ✦ <b id="mood">0</b>
             </div>
-
             <div class="stat">
                 <b id="speed">0</b> km/h
             </div>
         </div>
     </header>
 
-
     <main class="game-card">
-
         <canvas id="canvas"></canvas>
 
-
         <div class="hud">
-
             <div class="glass city-info">
                 <strong id="cityName">Yerevan</strong>
-                <small id="cityArea">
-                    Cascade Evening
-                </small>
+                <small id="cityArea">Cascade Evening</small>
             </div>
-
-
             <div class="glass distance">
                 <span id="distance">0.0</span> km
             </div>
-
         </div>
-
 
         <div class="controls">
-
             <div class="control-row">
-
-                <button
-                    class="game-btn steer"
-                    id="left">
-                    ‹
-                </button>
-
-                <button
-                    class="game-btn steer"
-                    id="right">
-                    ›
-                </button>
-
+                <button class="game-btn steer" id="left">‹</button>
+                <button class="game-btn steer" id="right">›</button>
             </div>
-
-
             <div class="control-row">
-
-                <button
-                    class="game-btn brake"
-                    id="brake">
-                    BRAKE
-                </button>
-
-                <button
-                    class="game-btn drive"
-                    id="drive">
-                    DRIVE
-                </button>
-
+                <button class="game-btn brake" id="brake">BRAKE</button>
+                <button class="game-btn drive" id="drive">DRIVE</button>
             </div>
-
         </div>
-
     </main>
 
-
-    <div class="explore-title">
-        EXPLORE
-    </div>
-
+    <div class="explore-title">EXPLORE</div>
 
     <div class="cities">
-
-        <button
-            class="city active"
-            data-city="Yerevan">
-            🇦🇲 Yerevan
-        </button>
-
-        <button
-            class="city"
-            data-city="Paris">
-            🇫🇷 Paris
-        </button>
-
-        <button
-            class="city"
-            data-city="Kyoto">
-            🇯🇵 Kyoto
-        </button>
-
-        <button
-            class="city"
-            data-city="Lisbon">
-            🇵🇹 Lisbon
-        </button>
-
-        <button
-            class="city"
-            data-city="New York">
-            🇺🇸 New York
-        </button>
-
+        <button class="city active" data-city="Yerevan">🇦🇲 Yerevan</button>
+        <button class="city" data-city="Paris">🇫🇷 Paris</button>
+        <button class="city" data-city="Kyoto">🇯🇵 Kyoto</button>
+        <button class="city" data-city="Lisbon">🇵🇹 Lisbon</button>
+        <button class="city" data-city="New York">🇺🇸 New York</button>
     </div>
-
-</div>* {
-    box-sizing: border-box;
-
-    -webkit-user-select: none;
-    user-select: none;
-
-    -webkit-touch-callout: none;
-
-    -webkit-tap-highlight-color: transparent;
-}
-
-
-html,
-body {
-
-    margin: 0;
-    padding: 0;
-
-    width: 100%;
-    min-height: 100%;
-
-    background: #090d12;
-
-    color: white;
-
-    font-family:
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-    overflow-x: hidden;
-}
-
-
-body {
-
-    display: flex;
-    justify-content: center;
-
-    padding: 14px;
-
-    touch-action: manipulation;
-}
-
-
-button {
-
-    font: inherit;
-
-    -webkit-user-select: none;
-    user-select: none;
-
-    -webkit-touch-callout: none;
-
-    cursor: pointer;
-
-    touch-action: none;
-}
-
-
-#game {
-
-    width: min(520px, 100%);
-}
-
-
-/* TOP */
-
-.topbar {
-
-    display: flex;
-
-    justify-content: space-between;
-    align-items: center;
-
-    margin-bottom: 12px;
-}
-
-
-.logo {
-
-    font-size: 21px;
-
-    font-weight: 850;
-
-    letter-spacing: -.7px;
-}
-
-
-.logo span {
-
-    opacity: .38;
-
-    font-weight: 500;
-}
-
-
-.stats {
-
-    display: flex;
-
-    gap: 7px;
-}
-
-
-.stat {
-
-    padding: 8px 11px;
-
-    border-radius: 13px;
-
-    background: #141a21;
-
-    border: 1px solid #252d37;
-
-    color: #bfc8d3;
-
-    font-size: 12px;
-}
-
-
-/* GAME */
-
-.game-card {
-
-    position: relative;
-
-    overflow: hidden;
-
-    border-radius: 27px;
-
-    background: #88afbf;
-
-    border: 1px solid #2c3640;
-
-    box-shadow:
-        0 20px 60px rgba(0,0,0,.42);
-
-    touch-action: none;
-}
-
-
-canvas {
-
-    display: block;
-
-    width: 100%;
-
-    aspect-ratio: 9 / 13;
-
-    touch-action: none;
-
-    pointer-events: none;
-}
-
-
-/* HUD */
-
-.hud {
-
-    position: absolute;
-
-    top: 13px;
-    left: 13px;
-    right: 13px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    pointer-events: none;
-}
-
-
-.glass {
-
-    background:
-        rgba(10,15,20,.78);
-
-    border:
-        1px solid
-        rgba(255,255,255,.12);
-
-    backdrop-filter: blur(12px);
-
-    border-radius: 16px;
-}
-
-
-.city-info {
-
-    padding: 10px 13px;
-}
-
-
-.city-info strong {
-
-    display: block;
-
-    font-size: 15px;
-}
-
-
-.city-info small {
-
-    display: block;
-
-    margin-top: 2px;
-
-    color: #aab4c0;
-
-    font-size: 11px;
-}
-
-
-.distance {
-
-    padding: 10px 13px;
-
-    font-size: 12px;
-
-    color: #dce2e9;
-}
-
-
-/* CONTROLS */
-
-.controls {
-
-    position: absolute;
-
-    left: 13px;
-    right: 13px;
-    bottom: 14px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: flex-end;
-}
-
-
-.control-row {
-
-    display: flex;
-
-    gap: 9px;
-}
-
-
-.game-btn {
-
-    width: 59px;
-    height: 59px;
-
-    border-radius: 19px;
-
-    border:
-        1px solid
-        rgba(255,255,255,.13);
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(36,45,56,.95),
-            rgba(13,18,24,.95)
-        );
-
-    color: white;
-
-    display: flex;
-
-    justify-content: center;
-    align-items: center;
-
-    box-shadow:
-        0 8px 20px rgba(0,0,0,.30);
-
-    transition:
-        transform .08s ease,
-        background .1s ease;
-
-    outline: none;
-}
-
-
-.game-btn:active {
-
-    transform: scale(.90);
-
-    background: #303c4a;
-}
-
-
-.steer {
-
-    font-size: 30px;
-
-    font-weight: 300;
-}
-
-
-.drive,
-.brake {
-
-    width: 76px;
-
-    font-size: 11px;
-
-    font-weight: 850;
-
-    letter-spacing: .5px;
-}
-
-
-.brake {
-
-    color: #ffb0a7;
-}
-
-
-/* CITY LIST */
-
-.explore-title {
-
-    margin-top: 17px;
-
-    margin-bottom: 8px;
-
-    color: #697482;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    letter-spacing: 1.4px;
-}
-
-
-.cities {
-
-    display: flex;
-
-    gap: 8px;
-
-    overflow-x: auto;
-
-    padding-bottom: 4px;
-
-    scrollbar-width: none;
-
-    touch-action: pan-x;
-}
-
-
-.cities::-webkit-scrollbar {
-
-    display: none;
-}
-
-
-.city {
-
-    flex-shrink: 0;
-
-    padding: 11px 14px;
-
-    border-radius: 14px;
-
-    border: 1px solid #29313b;
-
-    background: #11161d;
-
-    color: #dce2e8;
-
-    font-size: 13px;
-
-    font-weight: 700;
-
-    outline: none;
-}
-
-
-.city.active {
-
-    background: #edf1f5;
-
-    color: #11161c;
-
-    border-color: #edf1f5;
-}
-
-
-.city:active {
-
-    transform: scale(.95);
-}* {
-    box-sizing: border-box;
-
-    -webkit-user-select: none;
-    user-select: none;
-
-    -webkit-touch-callout: none;
-
-    -webkit-tap-highlight-color: transparent;
-}
-
-
-html,
-body {
-
-    margin: 0;
-    padding: 0;
-
-    width: 100%;
-    min-height: 100%;
-
-    background: #090d12;
-
-    color: white;
-
-    font-family:
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        sans-serif;
-
-    overflow-x: hidden;
-}
-
-
-body {
-
-    display: flex;
-    justify-content: center;
-
-    padding: 14px;
-
-    touch-action: manipulation;
-}
-
-
-button {
-
-    font: inherit;
-
-    -webkit-user-select: none;
-    user-select: none;
-
-    -webkit-touch-callout: none;
-
-    cursor: pointer;
-
-    touch-action: none;
-}
-
-
-#game {
-
-    width: min(520px, 100%);
-}
-
-
-/* TOP */
-
-.topbar {
-
-    display: flex;
-
-    justify-content: space-between;
-    align-items: center;
-
-    margin-bottom: 12px;
-}
-
-
-.logo {
-
-    font-size: 21px;
-
-    font-weight: 850;
-
-    letter-spacing: -.7px;
-}
-
-
-.logo span {
-
-    opacity: .38;
-
-    font-weight: 500;
-}
-
-
-.stats {
-
-    display: flex;
-
-    gap: 7px;
-}
-
-
-.stat {
-
-    padding: 8px 11px;
-
-    border-radius: 13px;
-
-    background: #141a21;
-
-    border: 1px solid #252d37;
-
-    color: #bfc8d3;
-
-    font-size: 12px;
-}
-
-
-/* GAME */
-
-.game-card {
-
-    position: relative;
-
-    overflow: hidden;
-
-    border-radius: 27px;
-
-    background: #88afbf;
-
-    border: 1px solid #2c3640;
-
-    box-shadow:
-        0 20px 60px rgba(0,0,0,.42);
-
-    touch-action: none;
-}
-
-
-canvas {
-
-    display: block;
-
-    width: 100%;
-
-    aspect-ratio: 9 / 13;
-
-    touch-action: none;
-
-    pointer-events: none;
-}
-
-
-/* HUD */
-
-.hud {
-
-    position: absolute;
-
-    top: 13px;
-    left: 13px;
-    right: 13px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    pointer-events: none;
-}
-
-
-.glass {
-
-    background:
-        rgba(10,15,20,.78);
-
-    border:
-        1px solid
-        rgba(255,255,255,.12);
-
-    backdrop-filter: blur(12px);
-
-    border-radius: 16px;
-}
-
-
-.city-info {
-
-    padding: 10px 13px;
-}
-
-
-.city-info strong {
-
-    display: block;
-
-    font-size: 15px;
-}
-
-
-.city-info small {
-
-    display: block;
-
-    margin-top: 2px;
-
-    color: #aab4c0;
-
-    font-size: 11px;
-}
-
-
-.distance {
-
-    padding: 10px 13px;
-
-    font-size: 12px;
-
-    color: #dce2e9;
-}
-
-
-/* CONTROLS */
-
-.controls {
-
-    position: absolute;
-
-    left: 13px;
-    right: 13px;
-    bottom: 14px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: flex-end;
-}
-
-
-.control-row {
-
-    display: flex;
-
-    gap: 9px;
-}
-
-
-.game-btn {
-
-    width: 59px;
-    height: 59px;
-
-    border-radius: 19px;
-
-    border:
-        1px solid
-        rgba(255,255,255,.13);
-
-    background:
-        linear-gradient(
-            145deg,
-            rgba(36,45,56,.95),
-            rgba(13,18,24,.95)
-        );
-
-    color: white;
-
-    display: flex;
-
-    justify-content: center;
-    align-items: center;
-
-    box-shadow:
-        0 8px 20px rgba(0,0,0,.30);
-
-    transition:
-        transform .08s ease,
-        background .1s ease;
-
-    outline: none;
-}
-
-
-.game-btn:active {
-
-    transform: scale(.90);
-
-    background: #303c4a;
-}
-
-
-.steer {
-
-    font-size: 30px;
-
-    font-weight: 300;
-}
-
-
-.drive,
-.brake {
-
-    width: 76px;
-
-    font-size: 11px;
-
-    font-weight: 850;
-
-    letter-spacing: .5px;
-}
-
-
-.brake {
-
-    color: #ffb0a7;
-}
-
-
-/* CITY LIST */
-
-.explore-title {
-
-    margin-top: 17px;
-
-    margin-bottom: 8px;
-
-    color: #697482;
-
-    font-size: 11px;
-
-    font-weight: 700;
-
-    letter-spacing: 1.4px;
-}
-
-
-.cities {
-
-    display: flex;
-
-    gap: 8px;
-
-    overflow-x: auto;
-
-    padding-bottom: 4px;
-
-    scrollbar-width: none;
-
-    touch-action: pan-x;
-}
-
-
-.cities::-webkit-scrollbar {
-
-    display: none;
-}
-
-
-.city {
-
-    flex-shrink: 0;
-
-    padding: 11px 14px;
-
-    border-radius: 14px;
-
-    border: 1px solid #29313b;
-
-    background: #11161d;
-
-    color: #dce2e8;
-
-    font-size: 13px;
-
-    font-weight: 700;
-
-    outline: none;
-}
-
-
-.city.active {
-
-    background: #edf1f5;
-
-    color: #11161c;
-
-    border-color: #edf1f5;
-}
-
-
-.city:active {
-
-    transform: scale(.95);
-}const canvas =
-    document.getElementById("canvas");
-
-const ctx =
-    canvas.getContext("2d");
-
-
-/* ================================
-   CITY DATA
-================================ */
-
-const cities = {
-
-    Yerevan: {
-
-        sky: "#e5a16c",
-
-        road: "#4b4d50",
-
-        sidewalk: "#c8b08c",
-
-        buildings: [
-            "#b97959",
-            "#d09a72",
-            "#8e7568"
-        ],
-
-        trees: "#607b55",
-
-        car: "#c85b48",
-
-        area: "Cascade Evening"
-    },
-
-
-    Paris: {
-
-        sky: "#aebdca",
-
-        road: "#50545a",
-
-        sidewalk: "#c7bdab",
-
-        buildings: [
-            "#d5c4a8",
-            "#b8a68f",
-            "#90999a"
-        ],
-
-        trees: "#58735a",
-
-        car: "#7186a0",
-
-        area: "Montmartre Streets"
-    },
-
-
-    Kyoto: {
-
-        sky: "#d79b88",
-
-        road: "#484b4d",
-
-        sidewalk: "#aa8b69",
-
-        buildings: [
-            "#875d49",
-            "#b67b5b",
-            "#d0a47d"
-        ],
-
-        trees: "#526d4e",
-
-        car: "#9c5f51",
-
-        area: "Lantern District"
-    },
-
-
-    Lisbon: {
-
-        sky: "#82bacb",
-
-        road: "#505054",
-
-        sidewalk: "#d8c79b",
-
-        buildings: [
-            "#dfb55e",
-            "#d88763",
-            "#a9c0bd"
-        ],
-
-        trees: "#52734f",
-
-        car: "#d4a33d",
-
-        area: "Alfama Hills"
-    },
-
-
-    "New York": {
-
-        sky: "#758ca6",
-
-        road: "#414348",
-
-        sidewalk: "#70716e",
-
-        buildings: [
-            "#696c73",
-            "#897c72",
-            "#565c65"
-        ],
-
-        trees: "#405d49",
-
-        car: "#637b99",
-
-        area: "Downtown Twilight"
-    }
-
-};
-
-
-/* ================================
-   STATE
-================================ */
-
-let currentCity = "Yerevan";
-
-let speed = 0;
-
-let distance = 0;
-
-let mood = 0;
-
-let steering = 0;
-
-let drivePressed = false;
-
-let brakePressed = false;
-
-let worldTime = 0;
-
-let lastTime =
-    performance.now();
-
-
-/* ================================
-   CANVAS RESIZE
-================================ */
-
-function resizeCanvas() {
-
-    const rect =
-        canvas.getBoundingClientRect();
-
-    const ratio =
-        Math.min(
-            window.devicePixelRatio || 1,
-            2
-        );
-
-
-    canvas.width =
-        rect.width * ratio;
-
-    canvas.height =
-        rect.height * ratio;
-
-
-    ctx.setTransform(
-        ratio,
-        0,
-        0,
-        ratio,
-        0,
-        0
-    );
-}
-
-
-window.addEventListener(
-    "resize",
-    resizeCanvas
-);
-
-
-resizeCanvas();
-
-
-/* ================================
-   ROUNDED RECTANGLE
-================================ */
-
-function roundedRect(
-    x,
-    y,
-    width,
-    height,
-    radius,
-    color
-) {
-
-    ctx.fillStyle = color;
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        x + radius,
-        y
-    );
-
-    ctx.lineTo(
-        x + width - radius,
-        y
-    );
-
-    ctx.quadraticCurveTo(
-        x + width,
-        y,
-        x + width,
-        y + radius
-    );
-
-    ctx.lineTo(
-        x + width,
-        y + height - radius
-    );
-
-    ctx.quadraticCurveTo(
-        x + width,
-        y + height,
-        x + width - radius,
-        y + height
-    );
-
-    ctx.lineTo(
-        x + radius,
-        y + height
-    );
-
-    ctx.quadraticCurveTo(
-        x,
-        y + height,
-        x,
-        y + height - radius
-    );
-
-    ctx.lineTo(
-        x,
-        y + radius
-    );
-
-    ctx.quadraticCurveTo(
-        x,
-        y,
-        x + radius,
-        y
-    );
-
-    ctx.closePath();
-
-    ctx.fill();
-}
-
-
-/* ================================
-   DRAW WORLD
-================================ */
-
-function draw() {
-
-    const W =
-        canvas.clientWidth;
-
-    const H =
-        canvas.clientHeight;
-
-    const city =
-        cities[currentCity];
-
-
-    ctx.clearRect(
-        0,
-        0,
-        W,
-        H
-    );
-
-
-    /* SKY */
-
-    ctx.fillStyle =
-        city.sky;
-
-    ctx.fillRect(
-        0,
-        0,
-        W,
-        H
-    );
-
-
-    /* SUN */
-
-    ctx.fillStyle =
-        "rgba(255,235,175,.78)";
-
-    ctx.beginPath();
-
-    ctx.arc(
-        W*.76,
-        H*.18,
-        31,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
-
-
-    /* DISTANT MOUNTAINS */
-
-    ctx.fillStyle =
-        "rgba(70,85,88,.25)";
-
-    ctx.beginPath();
-
-    ctx.moveTo(0,H*.48);
-
-    ctx.lineTo(
-        W*.18,
-        H*.30
-    );
-
-    ctx.lineTo(
-        W*.35,
-        H*.45
-    );
-
-    ctx.lineTo(
-        W*.53,
-        H*.28
-    );
-
-    ctx.lineTo(
-        W*.73,
-        H*.44
-    );
-
-    ctx.lineTo(
-        W*.9,
-        H*.32
-    );
-
-    ctx.lineTo(
-        W,
-        H*.48
-    );
-
-    ctx.lineTo(
-        W,
-        H*.58
-    );
-
-    ctx.lineTo(
-        0,
-        H*.58
-    );
-
-    ctx.closePath();
-
-    ctx.fill();
-
-
-    /* BUILDINGS */
-
-    for(let i=0;i<18;i++){
-
-        const width =
-            28 + (i%4)*9;
-
-        const height =
-            45 + (i*31)%110;
-
-        const x =
-            i*(W/13)
-            -
-            ((worldTime*45)%(W/13))
-            -
-            20;
-
-
-        ctx.fillStyle =
-            city.buildings[i%3];
-
-
-        ctx.fillRect(
-            x,
-            H*.49-height,
-            width,
-            height
-        );
-
-
-        /* WINDOWS */
-
-        for(let row=0;row<4;row++){
-
-            ctx.fillStyle =
-                "rgba(255,240,180,.48)";
-
-            ctx.fillRect(
-                x+7,
-                H*.49-height+
-                12+
-                row*20,
-                5,
-                7
-            );
-
+</div>
+
+<script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const cities = {
+        Yerevan: {
+            sky: "#e5a16c",
+            road: "#4b4d50",
+            sidewalk: "#c8b08c",
+            buildings: ["#b97959", "#d09a72", "#8e7568"],
+            trees: "#607b55",
+            car: "#c85b48",
+            area: "Cascade Evening"
+        },
+        Paris: {
+            sky: "#aebdca",
+            road: "#50545a",
+            sidewalk: "#c7bdab",
+            buildings: ["#d5c4a8", "#b8a68f", "#90999a"],
+            trees: "#58735a",
+            car: "#7186a0",
+            area: "Montmartre Streets"
+        },
+        Kyoto: {
+            sky: "#d79b88",
+            road: "#484b4d",
+            sidewalk: "#aa8b69",
+            buildings: ["#875d49", "#b67b5b", "#d0a47d"],
+            trees: "#526d4e",
+            car: "#9c5f51",
+            area: "Lantern District"
+        },
+        Lisbon: {
+            sky: "#82bacb",
+            road: "#505054",
+            sidewalk: "#d8c79b",
+            buildings: ["#dfb55e", "#d88763", "#a9c0bd"],
+            trees: "#52734f",
+            car: "#d4a33d",
+            area: "Alfama Hills"
+        },
+        "New York": {
+            sky: "#758ca6",
+            road: "#414348",
+            sidewalk: "#70716e",
+            buildings: ["#696c73", "#897c72", "#565c65"],
+            trees: "#405d49",
+            car: "#637b99",
+            area: "Downtown Twilight"
         }
-
-    }
-
-
-    /* SIDEWALKS */
-
-    ctx.fillStyle =
-        city.sidewalk;
-
-
-    ctx.fillRect(
-        0,
-        H*.49,
-        W*.14,
-        H
-    );
-
-
-    ctx.fillRect(
-        W*.86,
-        H*.49,
-        W*.14,
-        H
-    );
-
-
-    /* ROAD */
-
-    ctx.fillStyle =
-        city.road;
-
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        W*.12,
-        H
-    );
-
-    ctx.lineTo(
-        W*.435,
-        H*.47
-    );
-
-    ctx.lineTo(
-        W*.565,
-        H*.47
-    );
-
-    ctx.lineTo(
-        W*.88,
-        H
-    );
-
-    ctx.closePath();
-
-    ctx.fill();
-
-
-    /* ROAD EDGES */
-
-    ctx.strokeStyle =
-        "rgba(245,232,201,.7)";
-
-    ctx.lineWidth = 4;
-
-    ctx.beginPath();
-
-    ctx.moveTo(
-        W*.12,
-        H
-    );
-
-    ctx.lineTo(
-        W*.435,
-        H*.47
-    );
-
-    ctx.moveTo(
-        W*.88,
-        H
-    );
-
-    ctx.lineTo(
-        W*.565,
-        H*.47
-    );
-
-    ctx.stroke();
-
-
-    /* ROAD MARKINGS */
-
-    for(let i=0;i<9;i++){
-
-        const p =
-            (
-                i*.15 +
-                worldTime*.22
-            ) % 1;
-
-
-        const y =
-            H*.47 +
-            p*p*(H*.53);
-
-
-        const width =
-            3+p*10;
-
-
-        ctx.fillStyle =
-            "#eee4c9";
-
-
-        ctx.fillRect(
-            W/2-width/2,
-            y,
-            width,
-            4+p*6
-        );
-
-    }
-
-
-    /* TREES */
-
-    for(let i=0;i<8;i++){
-
-        const p =
-            (
-                i*.16 +
-                worldTime*.07
-            ) % 1;
-
-
-        const y =
-            H*.49 +
-            p*p*(H*.42);
-
-
-        const side =
-            i%2 ? 1 : -1;
-
-
-        const x =
-            W/2 +
-            side*
-            (
-                W*.36*p+
-                W*.08
-            );
-
-
-        ctx.fillStyle =
-            "#66533f";
-
-
-        ctx.fillRect(
-            x-2,
-            y,
-            4,
-            20+p*20
-        );
-
-
-        ctx.fillStyle =
-            city.trees;
-
-
-        ctx.beginPath();
-
-        ctx.arc(
-            x,
-            y-13,
-            12+p*7,
-            0,
-            Math.PI*2
-        );
-
-        ctx.fill();
-
-    }
-
-
-    /* ==========================
-       CAR
-    ========================== */
-
-    const carX =
-        W/2+
-        steering*W*.18;
-
-
-    const carY =
-        H*.79;
-
-
-    /* SHADOW */
-
-    ctx.fillStyle =
-        "rgba(0,0,0,.3)";
-
-
-    ctx.beginPath();
-
-    ctx.ellipse(
-        carX,
-        carY+38,
-        38,
-        10,
-        0,
-        0,
-        Math.PI*2
-    );
-
-    ctx.fill();
-
-
-    ctx.save();
-
-
-    ctx.translate(
-        carX,
-        carY
-    );
-
-
-    ctx.rotate(
-        steering*.08
-    );
-
-
-    /* BODY */
-
-    roundedRect(
-        -31,
-        -55,
-        62,
-        108,
-        14,
-        "#252a30"
-    );
-
-
-    roundedRect(
-        -26,
-        -49,
-        52,
-        91,
-        11,
-        city.car
-    );
-
-
-    /* WINDOWS */
-
-    roundedRect(
-        -20,
-        -38,
-        40,
-        27,
-        7,
-        "#9fc1c8"
-    );
-
-
-    roundedRect(
-        -20,
-        -3,
-        40,
-        25,
-        6,
-        "#75959d"
-    );
-
-
-    /* LIGHTS */
-
-    ctx.fillStyle =
-        "#f6d77a";
-
-
-    ctx.fillRect(
-        -23,
-        -51,
-        13,
-        5
-    );
-
-
-    ctx.fillRect(
-        10,
-        -51,
-        13,
-        5
-    );
-
-
-    ctx.fillStyle =
-        "#e66a62";
-
-
-    ctx.fillRect(
-        -23,
-        39,
-        13,
-        5
-    );
-
-
-    ctx.fillRect(
-        10,
-        39,
-        13,
-        5
-    );
-
-
-    ctx.restore();
-
-}
-
-
-/* ================================
-   GAME LOOP
-================================ */
-
-function gameLoop(now) {
-
-    const delta =
-        Math.min(
-            .05,
-            (now-lastTime)/1000
-        );
-
-
-    lastTime = now;
-
-
-    /* ACCELERATION */
-
-    if(
-        drivePressed &&
-        !brakePressed
-    ){
-
-        speed =
-            Math.min(
-                1,
-                speed + delta*.65
-            );
-
-    }
-
-
-    /* BRAKE */
-
-    else if(brakePressed){
-
-        speed =
-            Math.max(
-                0,
-                speed-delta*2.8
-            );
-
-    }
-
-
-    /* NATURAL DECELERATION */
-
-    else {
-
-        speed =
-            Math.max(
-                0,
-                speed-delta*.20
-            );
-
-    }
-
-
-    /* DISTANCE */
-
-    if(speed>.1){
-
-        distance +=
-            speed*
-            delta*
-            1.8;
-
-
-        mood +=
-            delta*
-            1.2;
-
-    }
-
-
-    /* WORLD MOVEMENT */
-
-    worldTime +=
-        delta*
-        (.4+speed*2.5);
-
-
-    /* UI */
-
-    document.getElementById(
-        "speed"
-    ).textContent =
-        Math.round(
-            speed*80
-        );
-
-
-    document.getElementById(
-        "distance"
-    ).textContent =
-        distance.toFixed(1);
-
-
-    document.getElementById(
-        "mood"
-    ).textContent =
-        Math.floor(mood);
-
-
-    draw();
-
-
-    requestAnimationFrame(
-        gameLoop
-    );
-}
-
-
-requestAnimationFrame(
-    gameLoop
-);
-
-
-/* ================================
-   MOBILE BUTTON SYSTEM
-================================ */
-
-function holdButton(
-    id,
-    press,
-    release
-){
-
-    const button =
-        document.getElementById(id);
-
-
-    button.addEventListener(
-        "pointerdown",
-        event => {
-
-            event.preventDefault();
-
-            button.setPointerCapture?.(
-                event.pointerId
-            );
-
-            press();
-
-        }
-    );
-
-
-    const stop = event => {
-
-        event.preventDefault();
-
-        release();
-
     };
 
+    let currentCity = "Yerevan";
+    let speed = 0;
+    let distance = 0;
+    let mood = 0;
+    let steering = 0;
+    let drivePressed = false;
+    let brakePressed = false;
+    let worldTime = 0;
+    let lastTime = performance.now();
 
-    button.addEventListener(
-        "pointerup",
-        stop
-    );
-
-
-    button.addEventListener(
-        "pointercancel",
-        stop
-    );
-
-
-    button.addEventListener(
-        "lostpointercapture",
-        release
-    );
-
-}
-
-
-/* STEERING */
-
-holdButton(
-    "left",
-
-    () => {
-        steering = -1;
-    },
-
-    () => {
-        if(steering < 0)
-            steering = 0;
+    function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     }
-);
 
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
-holdButton(
-    "right",
-
-    () => {
-        steering = 1;
-    },
-
-    () => {
-        if(steering > 0)
-            steering = 0;
+    function roundedRect(x, y, width, height, radius, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+        ctx.fill();
     }
-);
 
+    function draw() {
+        const W = canvas.clientWidth;
+        const H = canvas.clientHeight;
+        const city = cities[currentCity] || cities["Yerevan"];
 
-/* DRIVE */
+        ctx.clearRect(0, 0, W, H);
 
-holdButton(
-    "drive",
+        /* SKY */
+        ctx.fillStyle = city.sky;
+        ctx.fillRect(0, 0, W, H);
 
-    () => {
-        drivePressed = true;
-    },
+        /* SUN */
+        ctx.fillStyle = "rgba(255,235,175,.78)";
+        ctx.beginPath();
+        ctx.arc(W * .76, H * .18, 31, 0, Math.PI * 2);
+        ctx.fill();
 
-    () => {
-        drivePressed = false;
-    }
-);
+        /* DISTANT MOUNTAINS */
+        ctx.fillStyle = "rgba(70,85,88,.25)";
+        ctx.beginPath();
+        ctx.moveTo(0, H * .48);
+        ctx.lineTo(W * .18, H * .30);
+        ctx.lineTo(W * .35, H * .45);
+        ctx.lineTo(W * .53, H * .28);
+        ctx.lineTo(W * .73, H * .44);
+        ctx.lineTo(W * .9, H * .32);
+        ctx.lineTo(W, H * .48);
+        ctx.lineTo(W, H * .58);
+        ctx.lineTo(0, H * .58);
+        ctx.closePath();
+        ctx.fill();
 
+        /* BUILDINGS */
+        for (let i = 0; i < 18; i++) {
+            const width = 28 + (i % 4) * 9;
+            const height = 45 + (i * 31) % 110;
+            const x = i * (W / 13) - ((worldTime * 45) % (W / 13)) - 20;
 
-/* BRAKE */
+            ctx.fillStyle = city.buildings[i % 3];
+            ctx.fillRect(x, H * .49 - height, width, height);
 
-holdButton(
-    "brake",
-
-    () => {
-        brakePressed = true;
-    },
-
-    () => {
-        brakePressed = false;
-    }
-);
-
-
-/* ================================
-   BLOCK BROWSER MENU
-================================ */
-
-/*
-   This is important for mobile.
-
-   Long pressing the game will NOT
-   open Copy / Paste / Cut etc.
-*/
-
-document.addEventListener(
-    "contextmenu",
-    event => {
-
-        event.preventDefault();
-
-    }
-);
-
-
-document.addEventListener(
-    "selectstart",
-    event => {
-
-        event.preventDefault();
-
-    }
-);
-
-
-document.addEventListener(
-    "dragstart",
-    event => {
-
-        event.preventDefault();
-
-    }
-);
-
-
-/* ================================
-   CITY SWITCHING
-================================ */
-
-document
-    .querySelectorAll(".city")
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                currentCity =
-                    button.dataset.city;
-
-
-                document.getElementById(
-                    "cityName"
-                ).textContent =
-                    currentCity;
-
-
-                document.getElementById(
-                    "cityArea"
-                ).textContent =
-                    cities[
-                        currentCity
-                    ].area;
-
-
-                document
-                    .querySelectorAll(".city")
-                    .forEach(item => {
-
-                        item.classList.toggle(
-                            "active",
-                            item === button
-                        );
-
-                    });
-
+            for (let row = 0; row < 4; row++) {
+                ctx.fillStyle = "rgba(255,240,180,.48)";
+                ctx.fillRect(x + 7, H * .49 - height + 12 + row * 20, 5, 7);
             }
-        );
+        }
 
+        /* SIDEWALKS */
+        ctx.fillStyle = city.sidewalk;
+        ctx.fillRect(0, H * .49, W * .14, H);
+        ctx.fillRect(W * .86, H * .49, W * .14, H);
+
+        /* ROAD */
+        ctx.fillStyle = city.road;
+        ctx.beginPath();
+        ctx.moveTo(W * .12, H);
+        ctx.lineTo(W * .435, H * .47);
+        ctx.lineTo(W * .565, H * .47);
+        ctx.lineTo(W * .88, H);
+        ctx.closePath();
+        ctx.fill();
+
+        /* ROAD EDGES */
+        ctx.strokeStyle = "rgba(245,232,201,.7)";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(W * .12, H);
+        ctx.lineTo(W * .435, H * .47);
+        ctx.moveTo(W * .88, H);
+        ctx.lineTo(W * .565, H * .47);
+        ctx.stroke();
+
+        /* ROAD MARKINGS */
+        for (let i = 0; i < 9; i++) {
+            const p = (i * .15 + worldTime * .22) % 1;
+            const y = H * .47 + p * p * (H * .53);
+            const width = 3 + p * 10;
+            ctx.fillStyle = "#eee4c9";
+            ctx.fillRect(W / 2 - width / 2, y, width, 4 + p * 6);
+        }
+
+        /* TREES */
+        for (let i = 0; i < 8; i++) {
+            const p = (i * .16 + worldTime * .07) % 1;
+            const y = H * .49 + p * p * (H * .42);
+            const side = i % 2 ? 1 : -1;
+            const x = W / 2 + side * (W * .36 * p + W * .08);
+
+            ctx.fillStyle = "#66533f";
+            ctx.fillRect(x - 2, y, 4, 20 + p * 20);
+
+            ctx.fillStyle = city.trees;
+            ctx.beginPath();
+            ctx.arc(x, y - 13, 12 + p * 7, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        /* CAR */
+        const carX = W / 2 + steering * W * .18;
+        const carY = H * .79;
+
+        ctx.fillStyle = "rgba(0,0,0,.3)";
+        ctx.beginPath();
+        ctx.ellipse(carX, carY + 38, 38, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(carX, carY);
+        ctx.rotate(steering * .08);
+
+        roundedRect(-31, -55, 62, 108, 14, "#252a30");
+        roundedRect(-26, -49, 52, 91, 11, city.car);
+        roundedRect(-20, -38, 40, 27, 7, "#9fc1c8");
+        roundedRect(-20, -3, 40, 25, 6, "#75959d");
+
+        ctx.fillStyle = "#f6d77a";
+        ctx.fillRect(-23, -51, 13, 5);
+        ctx.fillRect(10, -51, 13, 5);
+
+        ctx.fillStyle = "#e66a62";
+        ctx.fillRect(-23, 39, 13, 5);
+        ctx.fillRect(10, 39, 13, 5);
+
+        ctx.restore();
+    }
+
+    function gameLoop(now) {
+        const delta = Math.min(.05, (now - lastTime) / 1000);
+        lastTime = now;
+
+        if (drivePressed && !brakePressed) {
+            speed = Math.min(1, speed + delta * .65);
+        } else if (brakePressed) {
+            speed = Math.max(0, speed - delta * 2.8);
+        } else {
+            speed = Math.max(0, speed - delta * .20);
+        }
+
+        if (speed > .1) {
+            distance += speed * delta * 1.8;
+            mood += delta * 1.2;
+        }
+
+        worldTime += delta * (.4 + speed * 2.5);
+
+        document.getElementById("speed").textContent = Math.round(speed * 80);
+        document.getElementById("distance").textContent = distance.toFixed(1);
+        document.getElementById("mood").textContent = Math.floor(mood);
+
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+
+    function holdButton(id, press, release) {
+        const button = document.getElementById(id);
+        if (!button) return;
+
+        button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            button.setPointerCapture?.(event.pointerId);
+            press();
+        });
+
+        const stop = event => {
+            event.preventDefault();
+            release();
+        };
+
+        button.addEventListener("pointerup", stop);
+        button.addEventListener("pointercancel", stop);
+        button.addEventListener("lostpointercapture", release);
+    }
+
+    holdButton("left", () => { steering = -1; }, () => { if (steering < 0) steering = 0; });
+    holdButton("right", () => { steering = 1; }, () => { if (steering > 0) steering = 0; });
+    holdButton("drive", () => { drivePressed = true; }, () => { drivePressed = false; });
+    holdButton("brake", () => { brakePressed = true; }, () => { brakePressed = false; });
+
+    document.addEventListener("contextmenu", e => e.preventDefault());
+    document.addEventListener("selectstart", e => e.preventDefault());
+    document.addEventListener("dragstart", e => e.preventDefault());
+
+    document.querySelectorAll(".city").forEach(button => {
+        button.addEventListener("click", () => {
+            currentCity = button.dataset.city;
+            if (cities[currentCity]) {
+                document.getElementById("cityName").textContent = currentCity;
+                document.getElementById("cityArea").textContent = cities[currentCity].area;
+            }
+
+            document.querySelectorAll(".city").forEach(item => {
+                item.classList.toggle("active", item === button);
+            });
+        });
     });
 
+    window.addEventListener("keydown", event => {
+        if (event.key === "ArrowLeft") steering = -1;
+        if (event.key === "ArrowRight") steering = 1;
+        if (event.key === "ArrowUp") drivePressed = true;
+        if (event.key === "ArrowDown") brakePressed = true;
+    });
 
-/* ================================
-   KEYBOARD
-================================ */
+    window.addEventListener("keyup", event => {
+        if (event.key === "ArrowLeft" && steering < 0) steering = 0;
+        if (event.key === "ArrowRight" && steering > 0) steering = 0;
+        if (event.key === "ArrowUp") drivePressed = false;
+        if (event.key === "ArrowDown") brakePressed = false;
+    });
+</script>
+</body>
+</html>
 
-window.addEventListener(
-    "keydown",
-    event => {
-
-        if(event.key === "ArrowLeft")
-            steering = -1;
-
-        if(event.key === "ArrowRight")
-            steering = 1;
-
-        if(event.key === "ArrowUp")
-            drivePressed = true;
-
-        if(event.key === "ArrowDown")
-            brakePressed = true;
-
-    }
-);
-
-
-window.addEventListener(
-    "keyup",
-    event => {
-
-        if(
-            event.key === "ArrowLeft" &&
-            steering < 0
-        )
-            steering = 0;
-
-
-        if(
-            event.key === "ArrowRight" &&
-            steering > 0
-        )
-            steering = 0;
-
-
-        if(event.key === "ArrowUp")
-            drivePressed = false;
-
-
-        if(event.key === "ArrowDown")
-            brakePressed = false;
-
-    }
-);
