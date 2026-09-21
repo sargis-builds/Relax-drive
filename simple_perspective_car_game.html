@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="hy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simple Perspective Car Demo</title>
+<style>
+  html,body{margin:0;height:100%;background:#202124;overflow:hidden;font-family:Arial,sans-serif}
+  canvas{display:block;width:100vw;height:100vh;background:#bfc0bd}
+  #help{
+    position:fixed;left:14px;top:12px;padding:9px 12px;border-radius:9px;
+    background:rgba(0,0,0,.55);color:#fff;font-size:13px;line-height:1.45;
+    pointer-events:none
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="help">
+  <b>Կառավարում</b><br>
+  ↑ / W — առաջ &nbsp; ↓ / S — հետ<br>
+  ← → / A D — ձախ/աջ, շրջադարձ<br>
+  R — վերականգնել դիրքը
+</div>
+
+<script>
+const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
+let W=innerWidth,H=innerHeight,DPR=1;
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+  W=innerWidth;H=innerHeight;
+  canvas.width=W*DPR;canvas.height=H*DPR;
+  canvas.style.width=W+"px";canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener("resize",resize); resize();
+
+const keys={};
+addEventListener("keydown",e=>{
+  keys[e.key.toLowerCase()]=true;
+  if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase())) e.preventDefault();
+  if(e.key.toLowerCase()==="r") reset();
+});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+const roadW=260;
+const world={
+  // One long road with a crossing in the middle. Coordinates are world-space.
+  roads:[
+    {x:0,y:0,w:roadW,h:5000,vertical:true},
+    {x:-1700,y:0,w:3400,h:roadW,vertical:false}
+  ],
+  buildings:[
+    // left/right blocks along the vertical road
+    [-620,-1800,360,650], [260,-1800,360,650],
+    [-620,-950,360,650],  [260,-950,360,650],
+    [-620,720,360,650],   [260,720,360,650],
+    [-620,1570,360,650],  [260,1570,360,650],
+    // blocks along horizontal road
+    [-1800,-620,650,360], [-950,260,650,360],
+    [720,-620,650,360],   [1570,260,650,360]
+  ]
+};
+
+const car={
+  x:0,y:1050,angle:-Math.PI/2,speed:0,
+  width:54,length:92,steer:0,
+  maxSpeed:430,reverse:170,accel:360,brake:620,
+  steerRate:2.3
+};
+
+let camera={x:car.x,y:car.y};
+
+function reset(){
+  car.x=0;car.y=1050;car.angle=-Math.PI/2;car.speed=0;car.steer=0;
+}
+
+function rectsOverlapCircle(cx,cy,r,b){
+  const x=Math.max(b[0],Math.min(cx,b[0]+b[2]));
+  const y=Math.max(b[1],Math.min(cy,b[1]+b[3]));
+  const dx=cx-x,dy=cy-y;
+  return dx*dx+dy*dy<r*r;
+}
+
+function insideRoad(x,y){
+  // A point is on either road.
+  return Math.abs(x)<=roadW/2 || Math.abs(y)<=roadW/2;
+}
+
+function carCollision(nx,ny){
+  // Several samples make building/edge contact feel less "teleporty".
+  const r=Math.hypot(car.width*.46,car.length*.40);
+  for(const b of world.buildings) if(rectsOverlapCircle(nx,ny,r,b)) return true;
+
+  // Outside the road network = collision with road edge.
+  const half=roadW/2-16;
+  const onV=Math.abs(nx)<=half;
+  const onH=Math.abs(ny)<=half;
+  if(!onV && !onH) return true;
+
+  // At an intersection allow the whole crossing.
+  return false;
+}
+
+function update(dt){
+  const up=keys["arrowup"]||keys["w"];
+  const down=keys["arrowdown"]||keys["s"];
+  const left=keys["arrowleft"]||keys["a"];
+  const right=keys["arrowright"]||keys["d"];
+
+  if(up) car.speed += car.accel*dt;
+  else if(down) car.speed -= car.accel*.75*dt;
+  else {
+    const drag=260*dt;
+    if(car.speed>0) car.speed=Math.max(0,car.speed-drag);
+    else if(car.speed<0) car.speed=Math.min(0,car.speed+drag);
+  }
+
+  car.speed=Math.max(-car.reverse,Math.min(car.maxSpeed,car.speed));
+
+  let steerTarget=(left?-1:0)+(right?1:0);
+  car.steer += (steerTarget-car.steer)*Math.min(1,8*dt);
+
+  // Steering becomes much stronger at low/moderate speed and naturally changes
+  // direction when reversing.
+  const speedFactor=Math.min(1,Math.abs(car.speed)/180);
+  car.angle += car.steer * car.steerRate * speedFactor * dt * (car.speed>=0?1:-1);
+
+  const nx=car.x+Math.cos(car.angle)*car.speed*dt;
+  const ny=car.y+Math.sin(car.angle)*car.speed*dt;
+
+  if(!carCollision(nx,ny)){
+    car.x=nx;car.y=ny;
+  }else{
+    // Collision response: stop and slide a tiny amount backward instead of clipping.
+    car.speed*=0.15;
+  }
+
+  // Keep the camera centered on the vehicle with slight look-ahead.
+  const look=car.speed*0.18;
+  const tx=car.x+Math.cos(car.angle)*look;
+  const ty=car.y+Math.sin(car.angle)*look;
+  camera.x+=(tx-camera.x)*Math.min(1,7*dt);
+  camera.y+=(ty-camera.y)*Math.min(1,7*dt);
+}
+
+function project(wx,wy){
+  // Pseudo-3D perspective around the car/camera.
+  const dx=wx-camera.x, dy=wy-camera.y;
+  const ca=Math.cos(-car.angle), sa=Math.sin(-car.angle);
+  const forward=dx*ca-dy*sa;
+  const side=dx*sa+dy*ca;
+
+  // Camera plane: forward is depth. Positive = in front.
+  const horizon=H*0.48;
+  const focal=520;
+  const depth=Math.max(40,forward+850);
+  const scale=focal/depth;
+  return {
+    x:W/2+side*scale,
+    y:horizon-forward*scale,
+    s:scale,
+    depth
+  };
+}
+
+function drawGround(){
+  ctx.fillStyle="#aeb0ac";ctx.fillRect(0,0,W,H);
+
+  // Horizon/background.
+  ctx.fillStyle="#c9cbc7";ctx.fillRect(0,0,W,H*.48);
+
+  // Faint perspective ground bands.
+  ctx.strokeStyle="rgba(70,70,70,.08)";
+  ctx.lineWidth=1;
+  for(let i=-20;i<=20;i++){
+    const p=project(i*1000,camera.y+200);
+    ctx.beginPath();ctx.moveTo(0,p.y);ctx.lineTo(W,p.y);ctx.stroke();
+  }
+}
+
+function drawRoads(){
+  // Draw world roads as many perspective slices, giving the simple 2D art
+  // a reduced 3D feeling.
+  const step=90;
+  const start=camera.y-2600,end=camera.y+2600;
+
+  for(let y=start;y<end;y+=step){
+    let p1=project(-roadW/2,y),p2=project(roadW/2,y);
+    const y2=project(-roadW/2,y+step), y3=project(roadW/2,y+step);
+    ctx.fillStyle="#55585a";
+    ctx.beginPath();
+    ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);
+    ctx.lineTo(y3.x,y3.y);ctx.lineTo(y2.x,y2.y);ctx.closePath();ctx.fill();
+  }
+
+  // Horizontal road near the intersection.
+  const hy=0;
+  let pL=project(-1800,hy-roadW/2),pR=project(1800,hy-roadW/2);
+  let pL2=project(-1800,hy+roadW/2),pR2=project(1800,hy+roadW/2);
+  ctx.fillStyle="#55585a";
+  ctx.beginPath();
+  ctx.moveTo(pL.x,pL.y);ctx.lineTo(pR.x,pR.y);ctx.lineTo(pR2.x,pR2.y);ctx.lineTo(pL2.x,pL2.y);ctx.closePath();ctx.fill();
+
+  // Lane center marking.
+  ctx.strokeStyle="#ded7ad";ctx.lineWidth=3;
+  for(let y=Math.floor((camera.y-2200)/90)*90;y<camera.y+2200;y+=90){
+    const a=project(0,y),b=project(0,y+42);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+
+  // Crosswalks at the intersection.
+  for(let i=-4;i<=4;i++){
+    const a=project(i*25,-roadW/2-3),b=project(i*25,roadW/2+3);
+    ctx.strokeStyle="rgba(235,235,235,.75)";ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+}
+
+function drawBuilding(b){
+  const [x,y,w,h]=b;
+  // Four corners, with a simple extruded top/side.
+  const z=80;
+  const a=project(x,y), b1=project(x+w,y), c=project(x+w,y+h), d=project(x,y+h);
+  const topA=project(x,y-z),topB=project(x+w,y-z);
+  const farA=project(x+w,y+h-z),farB=project(x,y+h-z);
+
+  // Back/top.
+  ctx.fillStyle="#8e918d";
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b1.x,b1.y);ctx.lineTo(topB.x,topB.y);ctx.lineTo(topA.x,topA.y);ctx.closePath();ctx.fill();
+
+  // Main wall.
+  ctx.fillStyle="#d8d4c9";
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b1.x,b1.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();ctx.fill();
+
+  // Side face gives the requested "cut 3D" feeling.
+  ctx.fillStyle="#b5b2a9";
+  ctx.beginPath();ctx.moveTo(b1.x,b1.y);ctx.lineTo(topB.x,topB.y);ctx.lineTo(farA.x,farA.y);ctx.lineTo(c.x,c.y);ctx.closePath();ctx.fill();
+
+  // Minimal windows.
+  if(Math.abs(b1.x-a.x)>18 && Math.abs(c.y-b1.y)>18){
+    ctx.strokeStyle="rgba(70,80,86,.25)";ctx.lineWidth=Math.max(1,a.s*2);
+    const rows=3;
+    for(let r=1;r<=rows;r++){
+      const t=r/(rows+1);
+      const lx=a.x+(d.x-a.x)*t, ly=a.y+(d.y-a.y)*t;
+      const rx=b1.x+(c.x-b1.x)*t, ry=b1.y+(c.y-b1.y)*t;
+      ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(rx,ry);ctx.stroke();
+    }
+  }
+}
+
+function drawBuildings(){
+  const arr=world.buildings.slice().sort((A,B)=>{
+    const ay=(A[1]+A[3]/2)-camera.y, by=(B[1]+B[3]/2)-camera.y;
+    return by-ay;
+  });
+  for(const b of arr) drawBuilding(b);
+}
+
+function drawCar(){
+  const cx=W/2, cy=H*.57;
+  const moving=Math.abs(car.speed)>5;
+  const steerVisual=car.steer*0.12;
+
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.rotate(steerVisual);
+
+  // Shadow.
+  ctx.fillStyle="rgba(0,0,0,.25)";
+  ctx.beginPath();ctx.ellipse(0,22,43,13,0,0,Math.PI*2);ctx.fill();
+
+  // Rear body, perspective trapezoid.
+  ctx.fillStyle="#c71919";
+  ctx.beginPath();
+  ctx.moveTo(-35,28);ctx.lineTo(-29,-25);ctx.quadraticCurveTo(0,-40,29,-25);
+  ctx.lineTo(35,28);ctx.quadraticCurveTo(0,40,-35,28);ctx.closePath();ctx.fill();
+
+  // Rear window.
+  ctx.fillStyle="#252a2e";
+  ctx.beginPath();
+  ctx.moveTo(-24,-18);ctx.quadraticCurveTo(0,-31,24,-18);
+  ctx.lineTo(20,-2);ctx.lineTo(-20,-2);ctx.closePath();ctx.fill();
+
+  // Trunk/bumper.
+  ctx.fillStyle="#e62a24";
+  ctx.fillRect(-28,3,56,19);
+  ctx.fillStyle="#7d1010";
+  ctx.fillRect(-31,20,62,7);
+
+  // Tail lights.
+  ctx.fillStyle="#ff8a70";
+  ctx.fillRect(-27,7,10,8);ctx.fillRect(17,7,10,8);
+
+  // Side visibility when turning.
+  const side=car.steer;
+  if(Math.abs(side)>.12){
+    ctx.fillStyle="#a81010";
+    if(side>0) ctx.fillRect(29,-10,12,32);
+    else ctx.fillRect(-41,-10,12,32);
+    ctx.fillStyle="#454b50";
+    if(side>0) ctx.fillRect(31,-7,8,17);
+    else ctx.fillRect(-39,-7,8,17);
+  }
+
+  // Small steering indication.
+  if(moving){
+    ctx.strokeStyle="rgba(255,255,255,.22)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,-42);ctx.lineTo(Math.sin(car.steer)*24,-55);ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMinimap(){
+  const size=150, pad=16, x=W-size-pad,y=pad;
+  ctx.fillStyle="rgba(18,20,20,.78)";
+  ctx.fillRect(x,y,size,size);
+
+  const scale=.055;
+  const mx=wx=>x+size/2+(wx-car.x)*scale;
+  const my=wy=>y+size/2+(wy-car.y)*scale;
+
+  // Roads
+  ctx.fillStyle="#5e6264";
+  ctx.fillRect(x+size/2-roadW*scale/2,y,roadW*scale,size);
+  ctx.fillRect(x,y+size/2-roadW*scale/2,size,roadW*scale);
+
+  // Buildings
+  ctx.fillStyle="#c7c2b7";
+  for(const b of world.buildings){
+    ctx.fillRect(mx(b[0]),my(b[1]),b[2]*scale,b[3]*scale);
+  }
+
+  // Car
+  ctx.save();ctx.translate(mx(car.x),my(car.y));ctx.rotate(car.angle+Math.PI/2);
+  ctx.fillStyle="#e51d1d";ctx.fillRect(-4,-7,8,14);ctx.restore();
+
+  ctx.strokeStyle="rgba(255,255,255,.45)";ctx.strokeRect(x,y,size,size);
+  ctx.fillStyle="#fff";ctx.font="11px Arial";ctx.fillText("MAP",x+7,y+13);
+}
+
+function drawSpeed(){
+  const kmh=Math.round(Math.abs(car.speed)*.18);
+  ctx.fillStyle="rgba(0,0,0,.5)";
+  ctx.fillRect(14,H-55,100,38);
+  ctx.fillStyle="#fff";ctx.font="bold 18px Arial";
+  ctx.fillText(kmh+" km/h",25,H-30);
+}
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.033,(now-last)/1000);last=now;
+  update(dt);
+  drawGround();drawRoads();drawBuildings();drawCar();drawMinimap();drawSpeed();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
