@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#05070f">
+<title>ԱՐԱԳԸՆԹԱՑ — 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{width:100%;height:100%;overflow:hidden;background:#05070f;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:#fff}
+
+#game{position:fixed;inset:0;overflow:hidden}
+/* ՊՈՐՏՐԵՏԻ ԴԵՊՔՈՒՄ ԱՄԵՆ ԻՆՔ ՊՏՏՎՈՒՄ Է ՀՈՐԻԶՈՆԱԿԱՆ */
+@media (orientation:portrait){
+  #game{
+    width:100vh;height:100vw;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%) rotate(90deg);
+    transform-origin:center center;
+  }
+}
+
+canvas{display:block;position:absolute;inset:0;width:100%;height:100%}
+
+/* ===== VIGNETTE + SPEED BLUR ===== */
+#vignette{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,0) 35%,rgba(0,0,0,.55) 100%);z-index:5}
+#speedfx{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,rgba(255,255,255,0) 20%,rgba(120,180,255,.14) 60%,rgba(180,120,255,.28) 100%);
+  transition:opacity .12s linear;z-index:6}
+#dmgflash{position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at center,rgba(255,0,0,0) 30%,rgba(255,20,20,.75) 100%);
+  transition:opacity .25s;z-index:7}
+
+/* ===== HUD ===== */
+#hud{position:absolute;inset:0;pointer-events:none;z-index:10}
+
+.panel{
+  position:absolute;
+  background:linear-gradient(160deg,rgba(14,20,38,.82),rgba(8,12,26,.72));
+  border:1px solid rgba(120,180,255,.22);
+  border-radius:14px;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 6px 26px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+#topLeft{top:10px;left:10px;padding:8px 16px;display:flex;flex-direction:column;gap:2px}
+#lvlTxt{font-size:11px;letter-spacing:2px;color:#7fd4ff;font-weight:700}
+#distTxt{font-size:20px;font-weight:800;letter-spacing:1px;
+  background:linear-gradient(90deg,#fff,#9ad8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+#topRight{top:10px;right:10px;padding:8px 16px;text-align:right;min-width:150px}
+#speedTxt{font-size:32px;font-weight:900;line-height:1;letter-spacing:-1px;
+  background:linear-gradient(90deg,#ffd36e,#ff7a45);-webkit-background-clip:text;background-clip:text;color:transparent;
+  transition:color .2s}
+#speedUnit{font-size:11px;color:#8ea3c8;letter-spacing:3px;font-weight:600}
+#hpWrap{margin-top:7px;width:100%;height:7px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
+#hpBar{height:100%;width:100%;border-radius:4px;
+  background:linear-gradient(90deg,#3ddc84,#a8ff60);transition:width .18s,background .3s}
+
+/* ===== CONTROLS ===== */
+#controls{position:absolute;inset:0;z-index:20;pointer-events:none}
+
+.btn{
+  position:absolute;pointer-events:auto;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;
+  background:linear-gradient(160deg,rgba(30,40,70,.92),rgba(14,20,38,.92));
+  border:2px solid rgba(130,190,255,.35);
+  box-shadow:0 8px 24px rgba(0,0,0,.55),inset 0 2px 0 rgba(255,255,255,.12);
+  color:#cfe4ff;font-weight:900;
+  transition:transform .07s,background .12s,border-color .12s;
+  touch-action:none;
+}
+.btn:active,.btn.on{transform:scale(.93);
+  background:linear-gradient(160deg,rgba(80,140,255,.95),rgba(40,80,200,.95));
+  border-color:rgba(180,220,255,.9);color:#fff}
+
+#btnLeft{left:16px;bottom:18px;width:88px;height:88px;font-size:34px}
+#btnRight{left:118px;bottom:18px;width:88px;height:88px;font-size:34px}
+
+#btnBrake{right:130px;bottom:20px;width:80px;height:80px;font-size:13px;letter-spacing:1px;
+  border-color:rgba(255,120,120,.5);color:#ffb4b4}
+#btnBrake:active,#btnBrake.on{background:linear-gradient(160deg,rgba(255,70,70,.95),rgba(180,20,20,.95));border-color:#ff9a9a}
+
+#btnGas{right:22px;bottom:14px;width:104px;height:104px;font-size:15px;letter-spacing:1.5px;
+  border-color:rgba(120,255,170,.5);color:#b6ffd4}
+#btnGas:active,#btnGas.on{background:linear-gradient(160deg,rgba(50,230,130,.95),rgba(10,150,70,.95));border-color:#a8ffcf}
+
+/* ===== STEERING WHEEL ===== */
+#wheelWrap{
+  position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+  width:150px;height:150px;pointer-events:none;z-index:19;
+  filter:drop-shadow(0 10px 22px rgba(0,0,0,.7));
+}
+#wheel{
+  width:100%;height:100%;position:relative;
+  transition:transform .05s linear;
+  transform-origin:50% 50%;
+}
+.wheelRim{
+  position:absolute;inset:0;border-radius:50%;
+  border:13px solid transparent;
+  background:
+    linear-gradient(#0d1424,#0d1424) padding-box,
+    conic-gradient(from 200deg,#2b3category,#48597f,#8fa8d8,#48597f,#2b3a5c,#1a2438,#48597f,#8fa8d8,#48597f,#2b3a5c) border-box;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.85),0 0 0 1px rgba(150,200,255,.18);
+}
+.wheelInner{
+  position:absolute;inset:16px;border-radius:50%;
+  background:radial-gradient(circle at 40% 32%,rgba(60,80,120,.35),rgba(4,6,14,.0) 62%);
+}
+.spoke{
+  position:absolute;left:50%;top:50%;background:linear-gradient(180deg,#5f74a0,#2a3550);
+  border-radius:5px;transform-origin:50% 0%;
+  box-shadow:0 0 8px rgba(0,0,0,.6);
+}
+.s1{width:15px;height:64px;margin-left:-7.5px;transform:rotate(180deg)}
+.s2{width:15px;height:64px;margin-left:-7.5px;transform:rotate(60deg)}
+.s3{width:15px;height:64px;margin-left:-7.5px;transform:rotate(-60deg)}
+.hub{
+  position:absolute;left:50%;top:50%;width:42px;height:42px;margin:-21px 0 0 -21px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#7a8fc0,#1b2438 70%);
+  box-shadow:0 0 0 3px #0b1120,0 0 14px rgba(120,180,255,.35),inset 0 2px 3px rgba(255,255,255,.25);
+}
+.mark{
+  position:absolute;left:50%;top:5px;width:5px;height:19px;margin-left:-2.5px;
+  border-radius:3px;background:linear-gradient(180deg,#ff5b5b,#a01010);
+  box-shadow:0 0 8px rgba(255,60,60,.9);
+}
+
+/* ===== MESSAGES ===== */
+#msg{
+  position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);
+  font-size:64px;font-weight:900;letter-spacing:6px;text-align:center;
+  text-shadow:0 0 34px rgba(120,190,255,.85),0 6px 30px rgba(0,0,0,.8);
+  pointer-events:none;opacity:0;z-index:30;white-space:nowrap;
+}
+#msg.show{animation:pop .85s ease-out}
+@keyframes pop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}
+  22%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}
+  72%{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(1.35)}
+}
+#msg.red{color:#ff5a5a;text-shadow:0 0 40px rgba(255,60,60,.95),0 6px 30px rgba(0,0,0,.85)}
+#msg.gold{color:#ffd45e;text-shadow:0 0 40px rgba(255,200,60,.95),0 6px 30px rgba(0,0,0,.85)}
+
+/* ===== MENU ===== */
+#menu{
+  position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(80,60,180,.42),transparent 62%),
+    radial-gradient(ellipse at 50% 100%,rgba(255,110,60,.22),transparent 62%),
+    linear-gradient(170deg,#070b18,#0d1226 45%,#160f22);
+  backdrop-filter:blur(4px);
+  transition:opacity .4s;
+}
+#menu.hide{opacity:0;pointer-events:none}
+
+#title{
+  font-size:clamp(34px,7vw,64px);font-weight:900;letter-spacing:10px;
+  background:linear-gradient(90deg,#6ee7ff,#a78bfa,#ff8a5b,#ffd45e);
+  background-size:280% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shine 5s linear infinite;
+  filter:drop-shadow(0 0 26px rgba(120,180,255,.55));
+}
+@keyframes shine{to{background-position:280% 0}}
+#sub{font-size:12px;letter-spacing:7px;color:#7f93b8;margin-top:-6px;font-weight:600}
+
+#levels{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:92vw;margin-top:8px}
+.lvlBtn{
+  width:76px;height:76px;border-radius:18px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:linear-gradient(160deg,rgba(35,48,82,.95),rgba(14,20,38,.95));
+  border:2px solid rgba(120,180,255,.32);
+  box-shadow:0 8px 22px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1);
+  transition:transform .13s,border-color .2s,box-shadow .2s;
+}
+.lvlBtn:active{transform:scale(.93)}
+.lvlBtn .n{font-size:24px;font-weight:900;color:#dceaff}
+.lvlBtn .t{font-size:8.5px;letter-spacing:1.5px;color:#7f93b8;font-weight:700}
+.lvlBtn.locked{opacity:.32;filter:grayscale(1);cursor:not-allowed}
+.lvlBtn.done{border-color:rgba(80,255,160,.65);box-shadow:0 0 22px rgba(60,230,140,.35),0 8px 22px rgba(0,0,0,.5)}
+.lvlBtn.done .n{color:#8affc0}
+
+#startBtn{
+  margin-top:6px;padding:15px 62px;border-radius:50px;cursor:pointer;
+  font-size:19px;font-weight:900;letter-spacing:5px;color:#04121e;
+  background:linear-gradient(90deg,#5eead4,#60a5fa,#a78bfa);
+  background-size:200% 100%;
+  border:none;box-shadow:0 10px 34px rgba(90,150,255,.5),0 0 0 1px rgba(255,255,255,.2) inset;
+  animation:shine 3.5s linear infinite;
+  transition:transform .13s;
+}
+#startBtn:active{transform:scale(.95)}
+
+#hint{font-size:11px;color:#61748f;letter-spacing:2px;text-align:center;line-height:1.9;margin-top:4px}
+.k{display:inline-block;padding:1px 8px;border-radius:6px;background:rgba(120,180,255,.14);
+  border:1px solid rgba(120,180,255,.3);color:#a8ccff;font-weight:700;margin:0 2px}
+
+#pauseBtn{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);
+  pointer-events:auto;padding:6px 18px;border-radius:12px;font-size:11px;letter-spacing:2px;
+  font-weight:800;color:#9fc6ff;cursor:pointer;
+  background:rgba(10,16,32,.75);border:1px solid rgba(120,180,255,.28);
+  backdrop-filter:blur(8px);z-index:25;
+}
+
+#endScreen{
+  position:absolute;inset:0;z-index:60;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  background:radial-gradient(ellipse at center,rgba(10,16,32,.82),rgba(3,5,12,.96));
+  backdrop-filter:blur(9px);
+}
+#endScreen.show{display:flex}
+#endTitle{font-size:clamp(30px,6vw,56px);font-weight:900;letter-spacing:8px}
+#endSub{font-size:13px;letter-spacing:3px;color:#8ea3c8}
+.endBtn{
+  padding:13px 44px;border-radius:40px;cursor:pointer;font-size:15px;font-weight:900;
+  letter-spacing:3px;border:2px solid rgba(130,190,255,.5);color:#cfe4ff;
+  background:linear-gradient(160deg,rgba(40,60,110,.9),rgba(14,20,38,.9));
+  transition:transform .12s;
+}
+.endBtn:active{transform:scale(.95)}
+.endBtn.primary{background:linear-gradient(90deg,#5eead4,#60a5fa);color:#04121e;border:none}
+
+#loadNote{position:absolute;bottom:8px;width:100%;text-align:center;font-size:10px;color:#4a5a75;letter-spacing:2px}
+</style>
+</head>
+<body>
+
+<div id="game">
+  <canvas id="c"></canvas>
+  <div id="vignette"></div>
+  <div id="speedfx"></div>
+  <div id="dmgflash"></div>
+
+  <div id="hud">
+    <div class="panel" id="topLeft">
+      <div id="lvlTxt">ՄԱԿԱՐԴԱԿ 1</div>
+      <div id="distTxt">0 մ</div>
+    </div>
+    <div class="panel" id="topRight">
+      <div id="speedTxt">0</div>
+      <div id="speedUnit">ԿՄ/Ժ</div>
+      <div id="hpWrap"><div id="hpBar"></div></div>
+    </div>
+    <div id="pauseBtn">⏸ ԿԱՆԳ</div>
+    <div id="wheelWrap">
+      <div id="wheel">
+        <div class="wheelRim"></div>
+        <div class="wheelInner"></div>
+        <div class="spoke s1"></div>
+        <div class="spoke s2"></div>
+        <div class="spoke s3"></div>
+        <div class="hub"></div>
+        <div class="mark"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <div class="btn" id="btnLeft">◀</div>
+    <div class="btn" id="btnRight">▶</div>
+    <div class="btn" id="btnBrake">ԱՐԳԵԼ</div>
+    <div class="btn" id="btnGas">ԳԱԶ</div>
+  </div>
+
+  <div id="msg"></div>
+
+  <div id="menu">
+    <div id="title">ԱՐԱԳԸՆԹԱՑ</div>
+    <div id="sub">3 D · Ն Ե Ղ Ա Ց Ո Ւ Մ</div>
+    <div id="levels"></div>
+    <button id="startBtn">ՍԿՍԵԼ</button>
+    <div id="hint">
+      <span class="k">◀ ▶</span> ղեկ &nbsp;·&nbsp; <span class="k">ԳԱԶ</span> արագացնել &nbsp;·&nbsp; <span class="k">ԱՐԳԵԼ</span> կանգնել<br>
+      Հասի՛ր վերջնագծին և <b>կանգնի՛ր</b>։ 150+ կմ/ժ բախումը = վթար։
+    </div>
+    <div id="loadNote">ԽՈՐՀՈՒՐԴ՝ պահիր հեռախոսը հորիզոնական</div>
+  </div>
+
+  <div id="endScreen">
+    <div id="endTitle">—</div>
+    <div id="endSub">—</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <div class="endBtn primary" id="btnRetry">ԿՐԿՆԵԼ</div>
+      <div class="endBtn" id="btnMenu">ՄԵՆՅՈՒ</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ==========================================================================
+   ԱՐԱԳԸՆԹԱՑ 3D — ամբողջական խաղ մեկ ֆայլում
+   ========================================================================== */
+(function(){
+'use strict';
+
+/* ---------------------------------------------------------------------------
+   1. ՀԻՄՆԱԿԱՆ ԿԱՅՈՒՆՆԵՐ
+--------------------------------------------------------------------------- */
+const ROAD_HALF   = 8;       // ճանապարհի կիսալայնություն (4 գիծ × 4մ)
+const SEG_LEN     = 5;       // ճանապարհի հատվածի երկարություն
+const NUM_SEG     = 250;     // հատվածների քանակ (250*5 = 1250մ տեսանելի)
+const LANE_OFF    = [-6,-2,2,6];  // -6,-2 = հանդիպակաց | +2,+6 = մեր ուղղությամբ
+const PLAYER_LANE = 2;
+
+const MAX_SPEED   = 180;
+const KMH_TO_MS   = 1/3.6;
+
+const LEVELS = [
+  {len:2400, spawn:1.55, traffic:0.75, name:'ՔԱՂԱՔ'},
+  {len:2900, spawn:1.35, traffic:0.85, name:'ՄԱՅՐՈՒՂԻ'},
+  {len:3400, spawn:1.15, traffic:0.95, name:'ԽԱՉՄԵՐՈՒԿ'},
+  {len:3900, spawn:1.00, traffic:1.05, name:'ԱՎՏՈԲԱՀՆ'},
+  {len:4400, spawn:0.88, traffic:1.15, name:'ՄԵԾ ԽՃՈՒՄ'}
+];
+
+/* ---------------------------------------------------------------------------
+   2. ԱՌԱՋԸՆԹԱՑԻ ՎԻՃԱԿ
+--------------------------------------------------------------------------- */
+const state = {
+  phase:'menu',
+  level:1,
+  speed:0,
+  x:0, z:0, heading:0,
+  steer:0, steerTarget:0,
+  health:100,
+  levelLength:2400,
+  distanceToFinish:0,
+  hitCooldown:0,
+  shake:0,
+  camX:0, camZ:-12,
+  time:0,
+  inZone:false,
+  countdown:0,
+  best:JSON.parse(localStorage.getItem('arag_best')||'{}')
+};
+
+const input = { gas:false, brake:false, left:false, right:false, wheelTouch:null };
+
+/* ---------------------------------------------------------------------------
+   3. ՁԱՅՆ (Web Audio API — առանց ֆայլերի)
+--------------------------------------------------------------------------- */
+const Audio_ = {
+  ctx:null, ready:false,
+  master:null, engineGain:null, engineF:null,
+  osc1:null, osc2:null, musicGain:null,
+  musicOn:true, sfxOn:true,
+  timer:null, step:0,
+
+  init(){
+    if(this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    this.ctx = new AC();
+
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.75;
+    this.master.connect(this.ctx.destination);
+
+    // --- ՇԱՐԺԻՉ ---
+    this.engineGain = this.ctx.createGain();
+    this.engineGain.gain.value = 0;
+    this.engineF = this.ctx.createBiquadFilter();
+    this.engineF.type = 'lowpass';
+    this.engineF.frequency.value = 700;
+    this.engineF.Q.value = 4;
+    this.engineF.connect(this.engineGain);
+    this.engineGain.connect(this.master);
+
+    this.osc1 = this.ctx.createOscillator();
+    this.osc1.type = 'sawtooth';
+    this.osc1.frequency.value = 55;
+    this.osc1.connect(this.engineF);
+    this.osc1.start();
+
+    this.osc2 = this.ctx.createOscillator();
+    this.osc2.type = 'square';
+    this.osc2.frequency.value = 82;
+    const g2 = this.ctx.createGain(); g2.gain.value = 0.32;
+    this.osc2.connect(g2); g2.connect(this.engineF);
+    this.osc2.start();
+
+    // --- ԵՐԱԺՇՏՈՒԹՅՈՒՆ ---
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0;
+    this.musicGain.connect(this.master);
+
+    this.ready = true;
+  },
+
+  resume(){
+    if(this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+
+  setEngine(speed, running){
+    if(!this.ready) return;
+    const t = this.ctx.currentTime;
+    const f = 42 + speed * 1.15;
+    this.osc1.frequency.setTargetAtTime(f, t, 0.06);
+    this.osc2.frequency.setTargetAtTime(f * 1.5 + 18, t, 0.06);
+    this.engineF.frequency.setTargetAtTime(380 + speed * 9, t, 0.08);
+    const vol = running ? 0.055 + (speed / MAX_SPEED) * 0.13 : 0.0;
+    this.engineGain.gain.setTargetAtTime(vol, t, 0.12);
+  },
+
+  noise(dur, cutoff, vol, decay){
+    if(!this.ready || !this.sfxOn) return;
+    const t = this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * dur);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<n;i++){
+      d[i] = (Math.random()*2-1) * Math.pow(1 - i/n, decay || 2);
+    }
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value = cutoff;
+    const g = this.ctx.createGain(); g.gain.value = vol;
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t);
+  },
+
+  crash(){
+    if(!this.ready || !this.sfxOn) return;
+    this.noise(0.9, 1800, 0.75, 1.6);
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    o.type='square'; o.frequency.setValueAtTime(180,t);
+    o.frequency.exponentialRampToValueAtTime(38, t+0.55);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.35,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+    o.connect(g); g.connect(this.master);
+    o.start(t); o.stop(t+0.65);
+  },
+
+  bump(force){
+    if(!this.ready || !this.sfxOn) return;
+    this.noise(0.28, 900, 0.12 + force*0.35, 2.5);
+  },
+
+  brakeSqueal(){
+    if(!this.ready || !this.sfxOn) return;
+    this.noise(0.22, 4200, 0.06, 1.2);
+  },
+
+  ding(){
+    if(!this.ready || !this.sfxOn) return;
+    const t = this.ctx.currentTime;
+    [880, 1320, 1760].forEach((f,i)=>{
+      const o = this.ctx.createOscillator();
+      o.type='sine'; o.frequency.value=f;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001,t+i*0.09);
+      g.gain.exponentialRampToValueAtTime(0.22, t+i*0.09+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+i*0.09+0.5);
+      o.connect(g); g.connect(this.master);
+      o.start(t+i*0.09); o.stop(t+i*0.09+0.55);
+    });
+  },
+
+  note(freq, time, dur, type, vol, cutoff){
+    const o = this.ctx.createOscillator();
+    o.type = type; o.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, time);
+    g.gain.exponentialRampToValueAtTime(vol, time+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, time+dur);
+    const f = this.ctx.createBiquadFilter();
+    f.type='lowpass'; f.frequency.value = cutoff;
+    o.connect(f); f.connect(g); g.connect(this.musicGain);
+    o.start(time); o.stop(time+dur+0.05);
+  },
+
+  hat(time, vol){
+    const n = Math.floor(this.ctx.sampleRate*0.05);
+    const buf = this.ctx.createBuffer(1,n,this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,4);
+    const s = this.ctx.createBufferSource(); s.buffer=buf;
+    const f = this.ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=6500;
+    const g = this.ctx.createGain(); g.gain.value=vol;
+    s.connect(f); f.connect(g); g.connect(this.musicGain);
+    s.start(time);
+  },
+
+  startMusic(){
+    if(!this.ready || this.timer || !this.musicOn) return;
+    this.musicGain.gain.setTargetAtTime(0.5, this.ctx.currentTime, 1.2);
+    const BASS = [110,110,130.81,130.81,146.83,146.83,98,98];
+    const LEAD = [440,523.25,659.25,523.25,587.33,523.25,440,392,
+                  349.23,440,523.25,440,392,349.23,329.63,392];
+    let next = this.ctx.currentTime + 0.15;
+    this.step = 0;
+    this.timer = setInterval(()=>{
+      if(!this.ready) return;
+      while(next < this.ctx.currentTime + 0.25){
+        const s = this.step % 16;
+        if(s % 4 === 0){
+          const bn = BASS[(Math.floor(this.step/4)) % BASS.length];
+          this.note(bn, next, 0.55, 'sawtooth', 0.10, 520);
+          this.note(bn*2, next, 0.5, 'triangle', 0.03, 900);
+        }
+        this.note(LEAD[s], next, 0.20, 'triangle', 0.045, 3200);
+        if(s % 2 === 1) this.hat(next, 0.022);
+        next += 0.235;
+        this.step++;
+      }
+    }, 60);
+  },
+
+  stopMusic(){
+    if(this.timer){ clearInterval(this.timer); this.timer = null; }
+    if(this.ready) this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4);
+  }
+};
+
+/* ---------------------------------------------------------------------------
+   4. THREE.JS — ՏԵՍԱՐԱՆ
+--------------------------------------------------------------------------- */
+const gameEl = document.getElementById('game');
+const canvas = document.getElementById('c');
+
+const renderer = new THREE.WebGLRenderer({
+  canvas, antialias:true, powerPreference:'high-performance', alpha:false
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0b1226, 55, 340);
+
+const camera = new THREE.PerspectiveCamera(72, 16/9, 0.3, 900);
+camera.position.set(0, 5, -10);
+
+/* --- ԵՐԿԻՆՔ --- */
+(function makeSky(){
+  const geo = new THREE.SphereGeometry(500, 24, 16);
+  const mat = new THREE.ShaderMaterial({
+    uniforms:{
+      cTop:{value:new THREE.Color(0x060a1c)},
+      cMid:{value:new THREE.Color(0x2a1d4d)},
+      cBot:{value:new THREE.Color(0x5a2a44)}
+    },
+    vertexShader:`varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);} `,
+    fragmentShader:`
+      uniform vec3 cTop,cMid,cBot; varying vec3 vP;
+      void main(){
+        float h = normalize(vP).y;
+        vec3 col = h > 0.0 ? mix(cMid, cTop, pow(h,0.65))
+                           : mix(cMid, cBot, pow(-h,0.55));
+        gl_FragColor = vec4(col,1.0);
+      }`,
+    side:THREE.BackSide, depthWrite:false, fog:false
+  });
+  scene.add(new THREE.Mesh(geo, mat));
+})();
+
+/* --- ԼՈՒՅՍ --- */
+scene.add(new THREE.HemisphereLight(0x9db8ff, 0x1a1a2e, 0.85));
+const moon = new THREE.DirectionalLight(0xa8c4ff, 0.7);
+moon.position.set(-60, 120, -40);
+scene.add(moon);
+const rim = new THREE.DirectionalLight(0xff7a55, 0.35);
+rim.position.set(50, 30, 90);
+scene.add(rim);
+
+/* --- ԳԵՏԻՆ --- */
+const groundMat = new THREE.MeshStandardMaterial({ color:0x0d1420, roughness:1, metalness:0 });
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(700, 1800), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.position.y = -0.12;
+scene.add(ground);
+
+/* ---------------------------------------------------------------------------
+   5. ՃԱՆԱՊԱՐՀԻ ԿՈՌ
+--------------------------------------------------------------------------- */
+function roadCenterX(z){
+  return 22*Math.sin(z*0.0055) + 9*Math.sin(z*0.0145) + 3.2*Math.sin(z*0.031);
+}
+function roadSlope(z){
+  const d = 0.6;
+  return (roadCenterX(z+d) - roadCenterX(z-d)) / (2*d);
+}
+function roadHeading(z){ return Math.atan(roadSlope(z)); }
+
+/* --- ՃԱՆԱՊԱՐՀԻ ՏԵՔՍՏՈՒՐԱ --- */
+function makeRoadTexture(){
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 512;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#24272e'; x.fillRect(0,0,256,512);
+  // ասֆալտի հատիկ
+  for(let i=0;i<5200;i++){
+    const px = Math.random()*256, py = Math.random()*512;
+    x.fillStyle = Math.random()>0.5 ? 'rgba(255,255,255,0.018)' : 'rgba(0,0,0,0.055)';
+    x.fillRect(px, py, 1.6, 1.6);
+  }
+  // եզրագծեր
+  x.fillStyle = '#dcdcdc';
+  x.fillRect(6,0,4,512);
+  x.fillRect(246,0,4,512);
+  // կենտրոնական կրկնակի դեղին
+  x.fillStyle = '#e0bd44';
+  x.fillRect(119,0,5,512);
+  x.fillRect(132,0,5,512);
+  // գծանշում ±4
+  x.fillStyle = '#d2d2d2';
+  for(let y=0;y<512;y+=256){
+    x.fillRect(62, y, 4, 128);
+    x.fillRect(190, y, 4, 128);
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 4;
+  return t;
+}
+
+const roadTex = makeRoadTexture();
+const roadGeo = new THREE.BufferGeometry();
+const roadPos = new Float32Array((NUM_SEG+1)*2*3);
+const roadUV  = new Float32Array((NUM_SEG+1)*2*2);
+(function buildRoadIndex(){
+  const idx = [];
+  for(let i=0;i<NUM_SEG;i++){
+    const a = i*2, b = i*2+1, c = (i+1)*2, d = (i+1)*2+1;
+    idx.push(a,c,b, b,c,d);
+  }
+  roadGeo.setIndex(idx);
+  roadGeo.setAttribute('position', new THREE.BufferAttribute(roadPos,3));
+  roadGeo.setAttribute('uv', new THREE.BufferAttribute(roadUV,2));
+})();
+const roadMat = new THREE.MeshStandardMaterial({
+  map:roadTex, roughness:0.92, metalness:0.03, color:0xffffff
+});
+const roadMesh = new THREE.Mesh(roadGeo, roadMat);
+roadMesh.frustumCulled = false;
+scene.add(roadMesh);
+
+function updateRoad(pz){
+  const startZ = pz - 120;
+  for(let i=0;i<=NUM_SEG;i++){
+    const z = startZ + i*SEG_LEN;
+    const cx = roadCenterX(z);
+    const o = i*6;
+    roadPos[o]   = cx - ROAD_HALF;
+    roadPos[o+1] = 0;
+    roadPos[o+2] = z;
+    roadPos[o+3] = cx + ROAD_HALF;
+    roadPos[o+4] = 0;
+    roadPos[o+5] = z;
+    const u = i*4;
+    roadUV[u]   = 0;  roadUV[u+1] = z/20;
+    roadUV[u+2] = 1;  roadUV[u+3] = z/20;
+  }
+  roadGeo.attributes.position.needsUpdate = true;
+  roadGeo.attributes.uv.needsUpdate = true;
+  roadGeo.computeBoundingSphere();
+}
+
+/* --- ԵԶՐԱԳԾԻ ԴԱՐՊԱՍ --- */
+function makeCheckTexture(){
+  const cv = document.createElement('canvas');
+  cv.width = 128; cv.height = 32;
+  const x = cv.getContext('2d');
+  const s = 16;
+  for(let i=0;i<8;i++) for(let j=0;j<2;j++){
+    x.fillStyle = ((i+j)%2===0) ? '#ffffff' : '#101018';
+    x.fillRect(i*s, j*s, s, s);
+  }
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(4,1);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const checkTex = makeCheckTexture();
+const finishGroup = new THREE.Group();
+(function buildFinish(){
+  const postMat = new THREE.MeshStandardMaterial({color:0x2b3550, metalness:0.7, roughness:0.35});
+  const pGeo = new THREE.BoxGeometry(0.7, 9, 0.7);
+  const p1 = new THREE.Mesh(pGeo, postMat); p1.position.set(-ROAD_HALF-0.6, 4.5, 0);
+  const p2 = new THREE.Mesh(pGeo, postMat); p2.position.set( ROAD_HALF+0.6, 4.5, 0);
+  const barGeo = new THREE.BoxGeometry(ROAD_HALF*2+2.2, 2.2, 0.35);
+  const barMat = new THREE.MeshStandardMaterial({
+    map:checkTex, emissive:0xffffff, emissiveMap:checkTex, emissiveIntensity:0.55, roughness:0.6
+  });
+  const bar = new THREE.Mesh(barGeo, barMat); bar.position.set(0, 8.4, 0);
+  finishGroup.add(p1,p2,bar);
+  finishGroup.visible = false;
+  scene.add(finishGroup);
+})();
+
+/* --- ԿԱՆԳԱՌՄԱՆ ԳՈՏԻ --- */
+const zoneMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(ROAD_HALF*2, 250),
+  new THREE.MeshBasicMaterial({color:0xff5533, transparent:true, opacity:0.10, depthWrite:false})
+);
+zoneMesh.rotation.x = -Math.PI/2;
+zoneMesh.position.y = 0.02;
+zoneMesh.visible = false;
+scene.add(zoneMesh);
+
+/* ---------------------------------------------------------------------------
+   6. ՄԵՔԵՆԱՆԵՐԻ ԳՈՐԾԱՐԱՆ
+--------------------------------------------------------------------------- */
+const CAR_COLORS = [0xff4a4a,0x4a9dff,0xffd24a,0x4affa0,0xff8a3d,0xb44aff,0xe8ecf5,0x22d3d3,0xff5fa2,0x7ee081];
+
+function buildCar(color, isPlayer){
+  const g = new THREE.Group();
+
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color, metalness:0.75, roughness:0.28,
+    emissive: isPlayer ? 0x220000 : 0x000000, emissiveIntensity:0.4
+  });
+  const darkMat = new THREE.MeshStandardMaterial({color:0x0d1220, metalness:0.5, roughness:0.4});
+
+  // հիմնական իրան
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.52, 4.1), bodyMat);
+  body.position.y = 0.66; g.add(body);
+
+  // քիթ (նեղացված)
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.36, 0.9), bodyMat);
+  nose.position.set(0, 0.55, 2.3); g.add(nose);
+
+  // տանիք / սրահ
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.52, 2.0),
+    new THREE.MeshStandardMaterial({color:0x0a1220, metalness:0.4, roughness:0.12,
+      transparent:true, opacity:0.9}));
+  cabin.position.set(0, 1.14, -0.18); g.add(cabin);
+
+  // հետևի թև
+  const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.5), darkMat);
+  spoiler.position.set(0, 1.0, -2.0); g.add(spoiler);
+
+  // անիվներ
+  const wheelGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.34, 14);
+  const wheelMat = new THREE.MeshStandardMaterial({color:0x121417, roughness:0.85});
+  const rimMat   = new THREE.MeshStandardMaterial({color:0xb8c2d4, metalness:0.95, roughness:0.22});
+  const wheels = [];
+  [[-0.94,1.35],[0.94,1.35],[-0.94,-1.35],[0.94,-1.35]].forEach(p=>{
+    const w = new THREE.Mesh(wheelGeo, wheelMat);
+    w.rotation.z = Math.PI/2;
+    w.position.set(p[0], 0.42, p[1]);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.24,0.36,10), rimMat);
+    r.rotation.z = Math.PI/2; w.add(r);
+    g.add(w); wheels.push(w);
+  });
+
+  // լուսարձակներ
+  const headMat = new THREE.MeshBasicMaterial({color:0xfff2c4});
+  const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.42,0.18,0.1), headMat);
+  h1.position.set(-0.6,0.66,2.76); g.add(h1);
+  const h2 = h1.clone(); h2.position.x = 0.6; g.add(h2);
+
+  const beam = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.2, 14),
+    new THREE.MeshBasicMaterial({color:0xfff0c0, transparent:true, opacity:isPlayer?0.09:0.05, depthWrite:false})
+  );
+  beam.rotation.x = -Math.PI/2;
+  beam.position.set(0,0.06,9);
+  g.add(beam);
+
+  // հետևի լույսեր
+  const tailMat = new THREE.MeshBasicMaterial({color:0xff2b2b});
+  const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.16,0.08), tailMat);
+  t1.position.set(-0.62,0.7,-2.08); g.add(t1);
+  const t2 = t1.clone(); t2.position.x = 0.62; g.add(t2);
+
+  return { group:g, wheels, tailMat, bodyMat, beam };
+}
+
+/* --- ԽՈՂՈՎԱԿԻ ՄԵՔԵՆԱ --- */
+const player = buildCar(0xff3b2f, true);
+player.group.position.set(0,0,0);
+scene.add(player.group);
+const playerBrakeLight = new THREE.MeshBasicMaterial({color:0xff2b2b});
+player.tailMat.emissiveIntensity = 1;
+
+/* ---------------------------------------------------------------------------
+   7. ՇԵՆՔԵՐ ԵՎ ԴԵԿՈՐ
+--------------------------------------------------------------------------- */
+function makeBuildingTexture(){
+  const cv = document.createElement('canvas');
+  cv.width = 64; cv.height = 128;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#141924'; x.fillRect(0,0,64,128);
+  for(let y=7;y<124;y+=11){
+    for(let px=5;px<60;px+=11){
+      const r = Math.random();
+      if(r > 0.42){
+        x.globalAlpha = 0.45 + Math.random()*0.55;
+        x.fillStyle = r > 0.78 ? '#ffd98f' : (r > 0.6 ? '#8fd8ff' : '#ffb56b');
+        x.fillRect(px, y, 7, 7);
+      }
+    }
+  }
+  x.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+const BLD_TEX = makeBuildingTexture();
+const BLD_MATS = [];
+for(let i=0;i<7;i++){
+  const t = BLD_TEX.clone();
+  t.needsUpdate = true;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1 + Math.random()*1.6, 1.4 + Math.random()*2.2);
+  BLD_MATS.push(new THREE.MeshStandardMaterial({
+    map:t, emissive:0xffffff, emissiveMap:t,
+    emissiveIntensity:0.42, color:0x8e9cb4, roughness:0.88, metalness:0.06
+  }));
+}
+
+const BOX_GEO = new THREE.BoxGeometry(1,1,1);
+const buildings = [];
+const BLD_COUNT = 46;
+for(let i=0;i<BLD_COUNT;i++){
+  const w = 9 + Math.random()*15;
+  const h = 14 + Math.random()*52;
+  const d = 9 + Math.random()*15;
+  const m = new THREE.Mesh(BOX_GEO, BLD_MATS[i % BLD_MATS.length]);
+  m.scale.set(w,h,d);
+  m.userData = { w, h, d, side: Math.random() > 0.5 ? 1 : -1, z: i * 60 };
+  scene.add(m);
+  buildings.push(m);
+}
+
+// Փողոցային լույսեր
+const LAMP_GEO = new THREE.CylinderGeometry(0.14,0.16,7,6);
+const LAMP_MAT = new THREE.MeshStandardMaterial({color:0x2a3346, metalness:0.7, roughness:0.5});
+const BULB_MAT = new THREE.MeshBasicMaterial({color:0xffe0a0});
+const lamps = [];
+for(let i=0;i<22;i++){
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(LAMP_GEO, LAMP_MAT); pole.position.y = 3.5; g.add(pole);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.42,8,6), BULB_MAT);
+  bulb.position.set(1.6, 7, 0); g.add(bulb);
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(1.7,0.16,0.16), LAMP_MAT);
+  arm.position.set(0.85, 6.9, 0); g.add(arm);
+  g.userData = { side: i%2===0 ? 1 : -1, z: i*95 };
+  scene.add(g); lamps.push(g);
+}
+
+function updateScenery(pz){
+  // շենքեր
+  buildings.forEach((b,i)=>{
+    const target = b.userData.z;
+    if(target < pz - 120){
+      b.userData.z += BLD_COUNT * 60;
+    }
+    const z = b.userData.z;
+    const off = 22 + Math.random()*0; // կայուն
+    const side = b.userData.side;
+    const baseOff = 24 + (i % 5) * 9;
+    b.position.set(
+      roadCenterX(z) + side * (baseOff + b.userData.w/2),
+      b.userData.h/2,
+      z
+    );
+    b.rotation.y = Math.atan(roadSlope(z)) + (Math.random()-0.5)*0.001;
+  });
+  // լամպեր
+  lamps.forEach((l,i)=>{
+    if(l.userData.z < pz - 100) l.userData.z += 22*95;
+    const z = l.userData.z;
+    const side = l.userData.side;
+    l.position.set(roadCenterX(z) + side * (ROAD_HALF + 3.2), 0, z);
+    l.rotation.y = side > 0 ? Math.PI : 0;
+    l.rotation.y += Math.atan(roadSlope(z));
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   8. ԵՐԹԵՎԵԿՈՒԹՅՈՒՆ
+--------------------------------------------------------------------------- */
+const traffic = [];
+const TRAFFIC_POOL = [];
+for(let i=0;i<16;i++){
+  const c = buildCar(CAR_COLORS[i % CAR_COLORS.length], false);
+  c.group.visible = false;
+  scene.add(c.group);
+  TRAFFIC_POOL.push(c);
+}
+
+function spawnTraffic(){
+  const lvl = LEVELS[state.level-1];
+  // ազատ մեքենա գտնել
+  const free = TRAFFIC_POOL.find(c => !c.group.visible);
+  if(!free) return;
+
+  const lane = Math.floor(Math.random()*4);
+  const isOncoming = lane < 2;
+  const z = state.z + 320 + Math.random()*320;
+
+  // ստուգել անցանելիությունը
+  let near = 0;
+  for(let i=0;i<traffic.length;i++){
+    if(Math.abs(traffic[i].z - z) < 115) near++;
+  }
+  if(near >= 2) return;
+
+  // լրացուցիչ. միևնույն գծում չլինի
+  for(let i=0;i<traffic.length;i++){
+    if(traffic[i].lane === lane && Math.abs(traffic[i].z - z) < 70) return;
+  }
+
+  const baseSpd = isOncoming
+    ? (17 + Math.random()*9) * lvl.traffic
+    : (11 + Math.random()*7) * lvl.traffic;
+
+  free.group.visible = true;
+  free.group.position.set(0,0,z);
+  traffic.push({
+    obj: free,
+    lane,
+    laneOff: LANE_OFF[lane],
+    z,
+    dir: isOncoming ? -1 : 1,
+    speed: baseSpd,
+    isOncoming
+  });
+}
+
+function updateTraffic(dt){
+  for(let i=traffic.length-1;i>=0;i--){
+    const t = traffic[i];
+    t.z += t.dir * t.speed * dt;
+    const cx = roadCenterX(t.z) + t.laneOff;
+    t.obj.group.position.set(cx, 0, t.z);
+    let h = Math.atan(roadSlope(t.z));
+    if(t.dir < 0) h += Math.PI;
+    t.obj.group.rotation.y = h;
+    // անիվների պտույտ
+    t.obj.wheels.forEach(w => w.rotation.x -= t.speed * dt * 1.6);
+
+    // հեռացնել հետևում
+    if(t.z < state.z - 80 || t.z > state.z + 1300){
+      t.obj.group.visible = false;
+      traffic.splice(i,1);
+    }
+  }
+}
+
+function clearTraffic(){
+  traffic.forEach(t => t.obj.group.visible = false);
+  traffic.length = 0;
+}
+
+/* ---------------------------------------------------------------------------
+   9. ԲԱԽՈՒՄ
+--------------------------------------------------------------------------- */
+function checkCollisions(){
+  if(state.hitCooldown > 0) return;
+  const px = state.x, pz = state.z;
+  for(let i=traffic.length-1;i>=0;i--){
+    const t = traffic[i];
+    const cx = t.obj.group.position.x;
+    const cz = t.obj.group.position.z;
+    if(Math.abs(px - cx) < 1.85 && Math.abs(pz - cz) < 3.7){
+      handleHit(t, i);
+      return;
+    }
+  }
+}
+
+function handleHit(t, idx){
+  state.hitCooldown = 0.7;
+  const sp = state.speed;
+
+  // վթար 150+
+  if(sp >= 150){
+    Audio_.crash();
+    doCrash('ՎԹԱՐ', 'Արագությունը չափազանց բարձր էր');
+    return;
+  }
+
+  let dmg;
+  if(sp >= 110) dmg = 50;
+  else if(sp >= 80) dmg = 34;
+  else if(sp >= 50) dmg = 18;
+  else if(sp >= 25) dmg = 8;
+  else dmg = 2;
+
+  state.health -= dmg;
+  state.speed *= (sp >= 80 ? 0.42 : 0.68);
+  state.shake = Math.min(1.4, 0.35 + sp/180);
+  flashDamage();
+
+  Audio_.bump(Math.min(1, sp/150));
+
+  // մեքենան հեռացնել
+  t.obj.group.visible = false;
+  traffic.splice(idx,1);
+
+  if(state.health <= 0){
+    Audio_.crash();
+    doCrash('ՎԹԱՐ', 'Մեքենան ամբողջովին վնասվեց');
+  }
+}
+
+function flashDamage(){
+  const el = document.getElementById('dmgflash');
+  el.style.transition = 'none';
+  el.style.opacity = '1';
+  requestAnimationFrame(()=>{
+    el.style.transition = 'opacity .45s';
+    el.style.opacity = '0';
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   10. ՄԱԿԱՐԴԱԿՆԵՐ
+--------------------------------------------------------------------------- */
+function startLevel(n){
+  const lvl = LEVELS[n-1];
+  state.level = n;
+  state.levelLength = lvl.len;
+  state.speed = 0;
+  state.z = 0;
+  state.x = roadCenterX(0) + PLAYER_LANE;
+  state.heading = roadHeading(0);
+  state.steer = 0; state.steerTarget = 0;
+  state.health = 100;
+  state.hitCooldown = 0;
+  state.shake = 0;
+  state.inZone = false;
+  state.countdown = 3.4;
+  state.phase = 'countdown';
+  state.camX = state.x - Math.sin(state.heading)*11;
+  state.camZ = state.z - Math.cos(state.heading)*11;
+
+  clearTraffic();
+
+  player.group.position.set(state.x, 0, state.z);
+  player.group.rotation.y = state.heading;
+
+  // եզրագիծ
+  finishGroup.visible = true;
+  finishGroup.position.set(roadCenterX(lvl.len), 0, lvl.len);
+  finishGroup.rotation.y = roadHeading(lvl.len);
+  zoneMesh.visible = true;
+  zoneMesh.position.set(roadCenterX(lvl.len - 125), 0.02, lvl.len - 125);
+  zoneMesh.rotation.z = -roadHeading(lvl.len - 125);
+
+  // HUD
+  document.getElementById('lvlTxt').textContent = 'ՄԱԿԱՐԴԱԿ ' + n + ' · ' + lvl.name;
+  document.getElementById('hpBar').style.width = '100%';
+  document.getElementById('hpBar').style.background = 'linear-gradient(90deg,#3ddc84,#a8ff60)';
+  updateHUD();
+
+  document.getElementById('endScreen').classList.remove('show');
+  document.getElementById('menu').classList.add('hide');
+
+  Audio_.init(); Audio_.resume(); Audio_.startMusic();
+  showMsg('3', 'gold');
+}
+
+function doCrash(title, sub){
+  if(state.phase === 'crash') return;
+  state.phase = 'crash';
+  state.speed = 0;
+  state.shake = 1.8;
+  showMsg(title, 'red');
+  setTimeout(()=>{
+    document.getElementById('endTitle').textContent = title;
+    document.getElementById('endTitle').style.color = '#ff5a5a';
+    document.getElementById('endSub').textContent = sub + ' — կրկնի՛ր մակարդակը';
+    document.getElementById('endScreen').classList.add('show');
+    Audio_.stopMusic();
+  }, 1100);
+}
+
+function doWin(){
+  if(state.phase === 'win') return;
+  state.phase = 'win';
+  state.speed = 0;
+  Audio_.ding();
+  showMsg('ՀԱՂԹԱՆԱԿ', 'gold');
+
+  const key = 'lv'+state.level;
+  if(!state.best[key] || state.best[key] > state.time){
+    state.best[key] = state.time;
+  }
+  state.best['unlocked'] = Math.max(state.best['unlocked']||1, Math.min(5, state.level+1));
+  localStorage.setItem('arag_best', JSON.stringify(state.best));
+
+  setTimeout(()=>{
+    document.getElementById('endTitle').textContent = 'ՀԱՂԹԱՆԱԿ';
+    document.getElementById('endTitle').style.color = '#ffd45e';
+    document.getElementById('endSub').textContent =
+      'Մակարդակ ' + state.level + ' · Ժամանակ՝ ' + state.time.toFixed(1) + ' վրկ';
+    document.getElementById('endScreen').classList.add('show');
+    document.getElementById('btnRetry').textContent =
+      state.level < 5 ? 'ՀԱՋՈՐԴԸ ▶' : 'ԿՐԿՆԵԼ';
+    Audio_.stopMusic();
+  }, 1300);
+}
+
+/* ---------------------------------------------------------------------------
+   11. ՂԵԿ ԵՎ ՖԻԶԻԿԱ
+--------------------------------------------------------------------------- */
+function updatePhysics(dt){
+  const lvl = LEVELS[state.level-1];
+
+  // --- ԱՐԱԳՈՒԹՅՈՒՆ ---
+  if(input.gas){
+    const accel = state.speed < 60 ? 52 : (state.speed < 130 ? 38 : 24);
+    state.speed += accel * dt;
+  }
+  if(input.brake){
+    state.speed -= 85 * dt;
+    if(state.speed > 25 && Math.random() < 0.06) Audio_.brakeSqueal();
+  }
+  if(!input.gas && !input.brake){
+    state.speed -= 11 * dt;
+  }
+  if(state.speed < 0) state.speed = 0;
+  if(state.speed > MAX_SPEED) state.speed = MAX_SPEED;
+
+  // --- ՂԵԿ ---
+  let target = 0;
+  if(input.left)  target -= 1;
+  if(input.right) target += 1;
+
+  // ղեկի սահուն շարժում
+  const steerSpeed = 3.4;
+  state.steerTarget = target;
+  state.steer += (state.steerTarget - state.steer) * Math.min(1, steerSpeed*dt);
+  if(Math.abs(state.steer) < 0.004) state.steer = 0;
+
+  // --- ՊՏՈՒՅՏ ---
+  const spFactor = Math.min(1, state.speed / 42);
+  const highSpeedDamp = 1 - 0.32 * Math.min(1, state.speed / MAX_SPEED);
+  const turnRate = 1.75 * spFactor * highSpeedDamp;
+  state.heading += state.steer * turnRate * dt;
+
+  const v = state.speed * KMH_TO_MS;
+  state.x += Math.sin(state.heading) * v * dt;
+  state.z += Math.cos(state.heading) * v * dt;
+
+  // --- ԱՐՏԱՃԱՆԱՊԱՐՀԱՅԻՆ ---
+  const off = state.x - roadCenterX(state.z);
+  const offRoad = Math.abs(off) > ROAD_HALF - 0.6;
+  if(offRoad){
+    state.speed -= 32 * dt;
+    if(state.speed > 70) state.speed -= 22 * dt;
+    state.health -= 3.5 * dt * Math.min(1, state.speed/100);
+    state.shake = Math.max(state.shake, 0.28);
+    if(state.health <= 0 && state.phase === 'play'){
+      Audio_.crash();
+      doCrash('ՎԹԱՐ', 'Դուրս եկար ճանապարհից');
+    }
+  }
+
+  // --- ՀՐՄԱՆՔՆԵՐ ---
+  state.hitCooldown -= dt;
+
+  // --- ԽՈՂՈՎԱԿԻ ՄԵՔԵՆԱՅԻ ՏԵՍՔ ---
+  player.group.position.set(state.x, 0, state.z);
+  player.group.rotation.y = state.heading;
+  const spin = state.speed * KMH_TO_MS * dt * 1.7;
+  player.wheels.forEach((w,i)=>{
+    w.rotation.x -= spin;
+    if(i < 2) w.rotation.y = state.steer * 0.5;
+  });
+
+  // --- ԿԱՆԳԱՌՄԱՆ ԳՈՏԻ ---
+  const zoneStart = state.levelLength - 250;
+  if(state.z >= zoneStart && state.z < state.levelLength + 30){
+    state.inZone = true;
+    if(state.speed < 7){
+      doWin();
+    }
+  } else {
+    state.inZone = false;
+  }
+  if(state.z > state.levelLength + 40 && state.phase === 'play'){
+    Audio_.crash();
+    doCrash('ԲԱԽՈՒՄ', 'Անցար վերջնագիծը առանց կանգնելու');
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   12. ՏԵՍԱԽՑԻԿ
+--------------------------------------------------------------------------- */
+function updateCamera(dt){
+  const h = state.heading;
+  const fwd = { x:Math.sin(h), z:Math.cos(h) };
+
+  const camDist = 11 + (state.speed / MAX_SPEED) * 4.2;
+  const camHigh = 5.0 + (state.speed / MAX_SPEED) * 0.9;
+
+  const tx = state.x - fwd.x * camDist;
+  const tz = state.z - fwd.z * camDist;
+
+  const k = 1 - Math.pow(0.0016, dt);
+  state.camX += (tx - state.camX) * k;
+  state.camZ += (tz - state.camZ) * k;
+
+  // ցնցում
+  let sx = 0, sy = 0;
+  if(state.shake > 0.01){
+    sx = (Math.random()-0.5) * state.shake * 1.6;
+    sy = (Math.random()-0.5) * state.shake * 1.2;
+    state.shake *= Math.pow(0.02, dt);
+    if(state.shake < 0.01) state.shake = 0;
+  }
+
+  camera.position.set(state.camX + sx, camHigh + sy, state.camZ);
+
+  const lookX = state.x + fwd.x * 9 + state.steer * 2.6;
+  const lookZ = state.z + fwd.z * 9;
+  camera.lookAt(lookX, 1.6, lookZ);
+
+  // FOV էֆեկտ
+  const targetFov = 70 + (state.speed / MAX_SPEED) * 20;
+  camera.fov += (targetFov - camera.fov) * Math.min(1, 3*dt);
+  camera.updateProjectionMatrix();
+
+  // ճանապարհի եզրին թեքում
+  camera.rotation.z += state.steer * 0.035;
+}
+
+/* ---------------------------------------------------------------------------
+   13. HUD
+--------------------------------------------------------------------------- */
+let hudTimer = 0;
+function updateHUD(){
+  const sp = Math.round(state.speed);
+  document.getElementById('speedTxt').textContent = sp;
+  const el = document.getElementById('speedTxt');
+  if(sp >= 150) el.style.background = 'linear-gradient(90deg,#ff5a5a,#ff2b2b)';
+  else if(sp >= 100) el.style.background = 'linear-gradient(90deg,#ffd36e,#ff7a45)';
+  else el.style.background = 'linear-gradient(90deg,#7ee7ff,#5eb0ff)';
+  el.style.webkitBackgroundClip = 'text';
+  el.style.backgroundClip = 'text';
+
+  const rem = Math.max(0, state.levelLength - state.z);
+  document.getElementById('distTxt').textContent = Math.round(rem) + ' մ';
+
+  const hp = Math.max(0, Math.min(100, state.health));
+  const bar = document.getElementById('hpBar');
+  bar.style.width = hp + '%';
+  bar.style.background = hp > 60
+    ? 'linear-gradient(90deg,#3ddc84,#a8ff60)'
+    : hp > 30
+      ? 'linear-gradient(90deg,#ffd45e,#ff9a45)'
+      : 'linear-gradient(90deg,#ff4d4d,#ff2020)';
+
+  // ղեկ
+  document.getElementById('wheel').style.transform = 'rotate(' + (state.steer * 145) + 'deg)';
+
+  // արագության էֆեկտ
+  document.getElementById('speedfx').style.opacity = Math.max(0, (state.speed - 90) / 110);
+}
+
+let msgTimeout = null;
+function showMsg(text, cls){
+  const m = document.getElementById('msg');
+  m.textContent = text;
+  m.className = cls || '';
+  m.classList.remove('show');
+  void m.offsetWidth;
+  m.classList.add('show');
+}
+
+/* ---------------------------------------------------------------------------
+   14. ՀԱՂՈՐԴԱԿՑՈՒԹՅՈՒՆ / ԿԱՌԱՎԱՐՈՒՄ
+--------------------------------------------------------------------------- */
+function bindHold(el, key){
+  const on  = e => { e.preventDefault(); input[key] = true;  el.classList.add('on'); Audio_.init(); Audio_.resume(); };
+  const off = e => { e.preventDefault(); input[key] = false; el.classList.remove('on'); };
+  el.addEventListener('touchstart', on, {passive:false});
+  el.addEventListener('touchend', off);
+  el.addEventListener('touchcancel', off);
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+
+bindHold(document.getElementById('btnGas'), 'gas');
+bindHold(document.getElementById('btnBrake'), 'brake');
+bindHold(document.getElementById('btnLeft'), 'left');
+bindHold(document.getElementById('btnRight'), 'right');
+
+// Ստեղնաշար (համակարգչի համար)
+addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') input.gas = true;
+  if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') input.brake = true;
+  if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = true;
+  if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = true;
+  if(e.key === ' ') e.preventDefault();
+  Audio_.init(); Audio_.resume();
+});
+addEventListener('keyup', e=>{
+  if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') input.gas = false;
+  if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') input.brake = false;
+  if(e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') input.left = false;
+  if(e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') input.right = false;
+});
+
+/* ---------------------------------------------------------------------------
+   15. ՄԵՆՅՈՒ
+--------------------------------------------------------------------------- */
+function buildMenu(){
+  const wrap = document.getElementById('levels');
+  wrap.innerHTML = '';
+  const unlocked = state.best['unlocked'] || 1;
+  for(let i=1;i<=5;i++){
+    const d = document.createElement('div');
+    d.className = 'lvlBtn';
+    if(i > unlocked) d.classList.add('locked');
+    if(state.best['lv'+i]) d.classList.add('done');
+    d.innerHTML = '<div class="n">'+(state.best['lv'+i] ? '★' : i)+'</div><div class="t">'+LEVELS[i-1].name+'</div>';
+    d.onclick = ()=>{
+      if(i > unlocked) return;
+      Audio_.init(); Audio_.resume();
+      startLevel(i);
+    };
+    wrap.appendChild(d);
+  }
+}
+
+document.getElementById('startBtn').onclick = ()=>{
+  Audio_.init(); Audio_.resume();
+  const unlocked = state.best['unlocked'] || 1;
+  startLevel(Math.min(unlocked, 5));
+};
+
+document.getElementById('btnRetry').onclick = ()=>{
+  Audio_.resume();
+  if(state.phase === 'win' && state.level < 5){
+    startLevel(state.level + 1);
+  } else {
+    startLevel(state.level);
+  }
+};
+document.getElementById('btnMenu').onclick = ()=>{
+  state.phase = 'menu';
+  clearTraffic();
+  document.getElementById('endScreen').classList.remove('show');
+  document.getElementById('menu').classList.remove('hide');
+  Audio_.stopMusic();
+  buildMenu();
+};
+document.getElementById('pauseBtn').onclick = ()=>{
+  if(state.phase === 'play' || state.phase === 'countdown'){
+    state.phase = 'paused';
+    document.getElementById('endTitle').textContent = 'ԿԱՆԳ';
+    document.getElementById('endTitle').style.color = '#9fc6ff';
+    document.getElementById('endSub').textContent = 'Խաղը դադարեցված է';
+    document.getElementById('btnRetry').textContent = 'ՇԱՐՈՒՆԱԿԵԼ';
+    document.getElementById('endScreen').classList.add('show');
+    Audio_.stopMusic();
+    document.getElementById('btnRetry').onclick = ()=>{
+      document.getElementById('endScreen').classList.remove('show');
+      state.phase = 'countdown';
+      state.countdown = 2.2;
+      document.getElementById('btnRetry').onclick = retryHandler;
+      Audio_.startMusic();
+    };
+  }
+};
+function retryHandler(){
+  Audio_.resume();
+  if(state.phase === 'win' && state.level < 5) startLevel(state.level + 1);
+  else startLevel(state.level);
+}
+document.getElementById('btnRetry').onclick = retryHandler;
+
+/* ---------------------------------------------------------------------------
+   16. ՉԱՓԵՐ
+--------------------------------------------------------------------------- */
+function resize(){
+  const w = gameEl.clientWidth || window.innerWidth;
+  const h = gameEl.clientHeight || window.innerHeight;
+  renderer.setSize(w, h, false);
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = '100%';
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+addEventListener('orientationchange', ()=>setTimeout(resize, 120));
+
+// Փորձել կողպել հորիզոնականը
+if(screen.orientation && screen.orientation.lock){
+  screen.orientation.lock('landscape').catch(()=>{});
+}
+
+/* ---------------------------------------------------------------------------
+   17. ՀԻՄՆԱԿԱՆ ՑԻԿԼ
+--------------------------------------------------------------------------- */
+let lastT = performance.now();
+let spawnTimer = 0;
+
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+
+  if(state.phase === 'countdown'){
+    state.countdown -= dt;
+    const c = Math.ceil(state.countdown - 0.4);
+    if(c !== state._lastC){
+      state._lastC = c;
+      if(c > 0) showMsg(String(c), 'gold');
+      else if(c === 0) showMsg('ԳՆԱ՛', 'gold');
+    }
+    if(state.countdown <= 0){
+      state.phase = 'play';
+      state.time = 0;
+      state._lastC = undefined;
+    }
+  } else if(state.phase === 'play'){
+    state.time += dt;
+
+    updatePhysics(dt);
+    updateTraffic(dt);
+
+    // երթևեկության ստեղծում
+    const lvl = LEVELS[state.level-1];
+    spawnTimer -= dt;
+    if(spawnTimer <= 0){
+      spawnTraffic();
+      spawnTimer = lvl.spawn * (0.75 + Math.random()*0.6);
+    }
+
+    checkCollisions();
+  } else {
+    // կանգ/վթար/հաղթանակ — մնացած էֆեկտներ
+    updateTraffic(dt * 0.35);
+    state.shake *= Math.pow(0.02, dt);
+  }
+
+  // մշտական թարմացումներ
+  updateRoad(state.z);
+  updateScenery(state.z);
+  updateCamera(dt);
+  updateHUD();
+
+  // ձայն
+  Audio_.setEngine(state.speed, state.phase === 'play' || state.phase === 'countdown');
+
+  // եզրագիծը հեռանում է
+  if(state.levelLength - state.z < -200){
+    finishGroup.visible = false;
+    zoneMesh.visible = false;
+  }
+
+  renderer.render(scene, camera);
+}
+
+/* ---------------------------------------------------------------------------
+   18. ԻՆԻՏ
+--------------------------------------------------------------------------- */
+buildMenu();
+resize();
+updateRoad(0);
+updateScenery(0);
+requestAnimationFrame(loop);
+
+// Առաջին դիպչումից ձայնը միացնել
+['touchstart','mousedown','keydown'].forEach(ev=>{
+  window.addEventListener(ev, ()=>{ Audio_.init(); Audio_.resume(); }, {once:true});
+});
+
+})();
+</script>
+</body>
+</html>
